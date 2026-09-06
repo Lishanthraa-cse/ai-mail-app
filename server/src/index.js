@@ -8,6 +8,7 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { google } = require('googleapis');
+const jwt = require('jsonwebtoken');
 const dns = require('dns');
 const { parseCommandRuleBased, parseCommand } = require('./services/aiService');
 // Configure custom DNS servers to bypass querySrv ECONNREFUSED on Windows/certain ISPs
