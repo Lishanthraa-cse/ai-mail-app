@@ -8,11 +8,8 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { google } = require('googleapis');
-const OpenAI = require('openai');
-const jwt = require('jsonwebtoken');
 const dns = require('dns');
-const { parseCommandRuleBased } = require('./services/aiService');
-
+const { parseCommandRuleBased, parseCommand } = require('./services/aiService');
 // Configure custom DNS servers to bypass querySrv ECONNREFUSED on Windows/certain ISPs
 try {
   dns.setServers(['8.8.8.8', '1.1.1.1']);
@@ -790,52 +787,9 @@ const handleAiCommand = async (req, res) => {
 
     let parsed = null;
     try {
-      if (process.env.OPENAI_API_KEY) {
-        const openai = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY,
-        });
-
-        const completion = await openai.chat.completions.create({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: `You are an AI assistant that controls a mail application.
-Parse the user's natural language command and return JSON.
-Possible actions:
-1. COMPOSE - Draft or send an email. Parameters: to, subject, body
-2. SEARCH - Search emails. Parameters: search, query, dateRange, unread
-3. OPEN - Open an email. Parameters: sender, subject, emailId
-4. REPLY - Reply to an email. Parameters: emailId, message, body
-5. FILTER - Filter inbox. Parameters: unread, sender, dateRange, keyword
-
-Return strict JSON only (no markdown, no backticks):
-{
-  "action": "COMPOSE" | "SEARCH" | "OPEN" | "REPLY" | "FILTER",
-  "message": "User-friendly description of what was done",
-  "data": { ...extracted parameters... }
-}`
-            },
-            {
-              role: 'user',
-              content: `Context: ${JSON.stringify(context)}\nCommand: ${command}`
-            }
-          ],
-          temperature: 0.3,
-        });
-
-        let rawContent = completion.choices[0]?.message?.content || '{}';
-        rawContent = rawContent.trim();
-        if (rawContent.startsWith('```')) {
-          rawContent = rawContent.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-        }
-        parsed = JSON.parse(rawContent);
-      }
+      parsed = await parseCommand(command, context);
     } catch (apiErr) {
-      console.warn(`⚠️ OpenAI request returned: ${apiErr.message}. Using intelligent command parser fallback.`);
-    }
-
-    if (!parsed) {
+      console.warn(`⚠️ AI parse error: ${apiErr.message}. Using intelligent command parser fallback.`);
       parsed = parseCommandRuleBased(command, context);
     }
 

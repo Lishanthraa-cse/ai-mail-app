@@ -1,6 +1,17 @@
 const OpenAI = require('openai');
+const axios = require('axios');
 
 const getOpenAiClient = () => {
+  if (process.env.GROQ_API_KEY) {
+    try {
+      return new OpenAI({
+        apiKey: process.env.GROQ_API_KEY,
+        baseURL: 'https://api.groq.com/openai/v1'
+      });
+    } catch (e) {
+      // ignore
+    }
+  }
   if (!process.env.OPENAI_API_KEY) return null;
   try {
     return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -9,46 +20,86 @@ const getOpenAiClient = () => {
   }
 };
 
-const parseCommand = async (command, context = {}) => {
-  const openai = getOpenAiClient();
-  if (!openai) {
-    return parseCommandRuleBased(command, context);
-  }
-
+const callGemini = async (systemPrompt, userPrompt) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an AI assistant that controls a mail application. 
-          Parse the user's natural language command and return a structured action.
-          
-          Available actions:
-          1. COMPOSE - Send an email
-          2. SEARCH - Search/filter emails
-          3. OPEN - Open a specific email
-          4. REPLY - Reply to current email
-          5. FILTER - Apply filters to inbox
-          6. FORWARD - Forward an email
-          
-          Return JSON with action, parameters, and any relevant data.
-          
-          Current context: ${JSON.stringify(context)}`
-        },
-        {
-          role: 'user',
-          content: command
+    const res = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `${systemPrompt}\n\nUser Input: ${userPrompt}` }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json'
         }
-      ],
-      response_format: { type: 'json_object' }
-    });
-
-    return JSON.parse(response.choices[0].message.content);
-  } catch (error) {
-    console.warn('⚠️ OpenAI API call error, falling back to rule parser:', error.message);
-    return parseCommandRuleBased(command, context);
+      },
+      { timeout: 8000 }
+    );
+    const text = res.data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) {
+      return JSON.parse(text);
+    }
+  } catch (err) {
+    console.warn(`⚠️ Gemini API call returned: ${err.message}`);
   }
+  return null;
+};
+
+const parseCommand = async (command, context = {}) => {
+  const systemPrompt = `You are an AI assistant that controls a mail application. 
+Parse the user's natural language command and return a structured action.
+
+Available actions:
+1. COMPOSE - Send an email (to, subject, body)
+2. SEARCH - Search/filter emails (search, query)
+3. OPEN - Open a specific email (sender, subject)
+4. REPLY - Reply to current email (emailId, message)
+5. FILTER - Apply filters to inbox (unread, sender, dateRange)
+6. FORWARD - Forward an email (to, emailId)
+
+Return strict JSON only (no markdown, no backticks) with keys:
+{
+  "action": "COMPOSE" | "SEARCH" | "OPEN" | "REPLY" | "FILTER" | "FORWARD",
+  "message": "User-friendly description of what was done",
+  "data": { ...parameters... }
+}
+Current context: ${JSON.stringify(context)}`;
+
+  // 1. Try Gemini (Free tier) if key is provided
+  if (process.env.GEMINI_API_KEY) {
+    const geminiResult = await callGemini(systemPrompt, command);
+    if (geminiResult && geminiResult.action) {
+      return geminiResult;
+    }
+  }
+
+  // 2. Try Groq or OpenAI
+  const openai = getOpenAiClient();
+  if (openai) {
+    try {
+      const modelName = process.env.GROQ_API_KEY ? 'llama-3.1-8b-instant' : 'gpt-3.5-turbo';
+      const response = await openai.chat.completions.create({
+        model: modelName,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: command }
+        ],
+        response_format: { type: 'json_object' }
+      });
+
+      return JSON.parse(response.choices[0].message.content);
+    } catch (error) {
+      console.warn('⚠️ AI API call error, falling back to intelligent rule parser:', error.message);
+    }
+  }
+
+  // 3. Robust rule-based parser (always works offline with 0 credits)
+  return parseCommandRuleBased(command, context);
 };
 
 const generateReply = async (email, userMessage) => {
