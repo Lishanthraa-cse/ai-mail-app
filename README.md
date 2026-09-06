@@ -65,7 +65,3 @@ The assistant is a **co-pilot that drives the interface**, not just a chatbot.
 - **Human-in-the-loop** - Assistant asks for confirmation before sending
 
 ---
-
-## 🛠️ Tech Stack
-
-### Frontend
