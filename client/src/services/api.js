@@ -18,13 +18,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle response errors
+// Handle response errors safely without infinite refresh loops
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/';
+      // Only redirect if NOT already at root or login to prevent reload loops
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/' && currentPath !== '/login' && currentPath !== '') {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }

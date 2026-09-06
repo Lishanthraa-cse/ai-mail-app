@@ -176,7 +176,9 @@ async (accessToken, refreshToken, profile, done) => {
       console.log('👤 New user created:', user.email);
     } else {
       user.accessToken = accessToken;
-      user.refreshToken = refreshToken;
+      if (refreshToken) {
+        user.refreshToken = refreshToken;
+      }
       await user.save();
       console.log('👤 User logged in:', user.email);
     }
@@ -198,8 +200,12 @@ passport.deserializeUser(async (id, done) => {
 });
 
 // ========================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS & CACHE ENGINE
 // ========================================
+
+let quotaCooldownUntil = 0;
+let cachedInboxData = { timestamp: 0, emails: [] };
+let cachedSentData = { timestamp: 0, emails: [] };
 
 const getGmailClient = async (user) => {
   const oauth2Client = new google.auth.OAuth2(
@@ -211,6 +217,17 @@ const getGmailClient = async (user) => {
   oauth2Client.setCredentials({
     access_token: user.accessToken,
     refresh_token: user.refreshToken
+  });
+
+  oauth2Client.on('tokens', async (tokens) => {
+    try {
+      if (tokens.access_token) user.accessToken = tokens.access_token;
+      if (tokens.refresh_token) user.refreshToken = tokens.refresh_token;
+      await user.save();
+      console.log('🔄 Google access token refreshed automatically');
+    } catch (e) {
+      console.warn('Could not save refreshed token:', e.message);
+    }
   });
 
   return google.gmail({ version: 'v1', auth: oauth2Client });
@@ -298,6 +315,8 @@ app.get('/api/test', (req, res) => {
 // Auth routes
 app.get('/api/auth/google', passport.authenticate('google', {
   scope: ['email', 'profile', 'https://www.googleapis.com/auth/gmail.modify'],
+  accessType: 'offline',
+  prompt: 'consent'
 }));
 
 app.get('/api/auth/google/callback', passport.authenticate('google', {
@@ -382,69 +401,99 @@ const authenticateToken = async (req, res, next) => {
 };
 
 // Email Routes
+// Email Routes with Quota Protection & Caching
 app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
   try {
+    const now = Date.now();
+    // 1. Quota cooldown guard
+    if (now < quotaCooldownUntil) {
+      console.log('⏳ Serving inbox from database cache during Gmail quota cooldown');
+      const cached = await Email.find().sort({ date: -1 }).limit(20);
+      return res.json(cached);
+    }
+
+    // 2. 30-second in-memory cache to prevent multiple tabs from burning quota
+    if (cachedInboxData.emails.length > 0 && (now - cachedInboxData.timestamp < 30000)) {
+      return res.json(cachedInboxData.emails);
+    }
+
     const gmail = await getGmailClient(req.user);
 
     const response = await gmail.users.messages.list({
       userId: 'me',
       q: 'in:inbox',
-      maxResults: 20
+      maxResults: 15
     });
 
     const emails = [];
     if (response.data.messages) {
       for (const message of response.data.messages) {
-        const msg = await gmail.users.messages.get({
-          userId: 'me',
-          id: message.id,
-          format: 'full'
-        });
-
-        const headers = msg.data.payload.headers;
-        const getHeader = (name) => {
-          const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
-          return header ? header.value : '';
-        };
-
-        let body = '';
-        if (msg.data.payload.parts) {
-          const textPart = msg.data.payload.parts.find(part =>
-            part.mimeType === 'text/plain' || part.mimeType === 'text/html'
-          );
-          if (textPart && textPart.body.data) {
-            body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
-          }
-        } else if (msg.data.payload.body && msg.data.payload.body.data) {
-          body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+        // Reuse email from MongoDB if already fetched, avoiding expensive Gmail API get calls
+        let emailData = await Email.findOne({ emailId: message.id });
+        if (emailData) {
+          emails.push(emailData);
+          continue;
         }
 
-        const emailData = {
-          emailId: msg.data.id,
-          threadId: msg.data.threadId,
-          from: parseEmailAddress(getHeader('from')),
-          to: parseEmailAddresses(getHeader('to')),
-          subject: getHeader('subject'),
-          body: body || msg.data.snippet,
-          snippet: msg.data.snippet,
-          date: new Date(getHeader('date')),
-          isRead: !msg.data.labelIds?.includes('UNREAD'),
-          labels: msg.data.labelIds || []
-        };
+        try {
+          const msg = await gmail.users.messages.get({
+            userId: 'me',
+            id: message.id,
+            format: 'full'
+          });
 
-        await Email.findOneAndUpdate(
-          { emailId: msg.data.id },
-          emailData,
-          { upsert: true }
-        );
+          const headers = msg.data.payload.headers;
+          const getHeader = (name) => {
+            const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+            return header ? header.value : '';
+          };
 
-        emails.push(emailData);
+          let body = '';
+          if (msg.data.payload.parts) {
+            const textPart = msg.data.payload.parts.find(part =>
+              part.mimeType === 'text/plain' || part.mimeType === 'text/html'
+            );
+            if (textPart && textPart.body.data) {
+              body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+            }
+          } else if (msg.data.payload.body && msg.data.payload.body.data) {
+            body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+          }
+
+          emailData = {
+            emailId: msg.data.id,
+            threadId: msg.data.threadId,
+            from: parseEmailAddress(getHeader('from')),
+            to: parseEmailAddresses(getHeader('to')),
+            subject: getHeader('subject'),
+            body: body || msg.data.snippet,
+            snippet: msg.data.snippet,
+            date: new Date(getHeader('date')),
+            isRead: !msg.data.labelIds?.includes('UNREAD'),
+            labels: msg.data.labelIds || []
+          };
+
+          await Email.findOneAndUpdate(
+            { emailId: msg.data.id },
+            emailData,
+            { upsert: true }
+          );
+
+          emails.push(emailData);
+        } catch (msgErr) {
+          console.warn(`Could not fetch message ${message.id}:`, msgErr.message);
+        }
       }
     }
 
+    cachedInboxData = { timestamp: Date.now(), emails };
     res.json(emails);
   } catch (error) {
     console.error('❌ Error fetching inbox:', error.message);
+    if (error.message?.includes('Quota') || error.message?.includes('limit') || error.code === 429) {
+      console.warn('⚠️ Gmail API quota reached. Setting 2-minute cooldown.');
+      quotaCooldownUntil = Date.now() + 120000;
+    }
     try {
       const cached = await Email.find().sort({ date: -1 }).limit(20);
       return res.json(cached);
@@ -456,67 +505,91 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
 
 app.get('/api/emails/sent', authenticateToken, async (req, res) => {
   try {
+    const now = Date.now();
+    if (now < quotaCooldownUntil) {
+      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(20);
+      return res.json(cached);
+    }
+
+    if (cachedSentData.emails.length > 0 && (now - cachedSentData.timestamp < 30000)) {
+      return res.json(cachedSentData.emails);
+    }
+
     const gmail = await getGmailClient(req.user);
 
     const response = await gmail.users.messages.list({
       userId: 'me',
       q: 'in:sent',
-      maxResults: 20
+      maxResults: 15
     });
 
     const emails = [];
     if (response.data.messages) {
       for (const message of response.data.messages) {
-        const msg = await gmail.users.messages.get({
-          userId: 'me',
-          id: message.id,
-          format: 'full'
-        });
-
-        const headers = msg.data.payload.headers;
-        const getHeader = (name) => {
-          const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
-          return header ? header.value : '';
-        };
-
-        let body = '';
-        if (msg.data.payload.parts) {
-          const textPart = msg.data.payload.parts.find(part =>
-            part.mimeType === 'text/plain' || part.mimeType === 'text/html'
-          );
-          if (textPart && textPart.body.data) {
-            body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
-          }
-        } else if (msg.data.payload.body && msg.data.payload.body.data) {
-          body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+        let emailData = await Email.findOne({ emailId: message.id });
+        if (emailData) {
+          emails.push(emailData);
+          continue;
         }
 
-        const emailData = {
-          emailId: msg.data.id,
-          threadId: msg.data.threadId,
-          from: parseEmailAddress(getHeader('from')),
-          to: parseEmailAddresses(getHeader('to')),
-          subject: getHeader('subject'),
-          body: body || msg.data.snippet,
-          snippet: msg.data.snippet,
-          date: new Date(getHeader('date')),
-          isRead: true,
-          labels: ['SENT', ...(msg.data.labelIds || [])]
-        };
+        try {
+          const msg = await gmail.users.messages.get({
+            userId: 'me',
+            id: message.id,
+            format: 'full'
+          });
 
-        await Email.findOneAndUpdate(
-          { emailId: msg.data.id },
-          emailData,
-          { upsert: true }
-        );
+          const headers = msg.data.payload.headers;
+          const getHeader = (name) => {
+            const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+            return header ? header.value : '';
+          };
 
-        emails.push(emailData);
+          let body = '';
+          if (msg.data.payload.parts) {
+            const textPart = msg.data.payload.parts.find(part =>
+              part.mimeType === 'text/plain' || part.mimeType === 'text/html'
+            );
+            if (textPart && textPart.body.data) {
+              body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+            }
+          } else if (msg.data.payload.body && msg.data.payload.body.data) {
+            body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+          }
+
+          emailData = {
+            emailId: msg.data.id,
+            threadId: msg.data.threadId,
+            from: parseEmailAddress(getHeader('from')),
+            to: parseEmailAddresses(getHeader('to')),
+            subject: getHeader('subject'),
+            body: body || msg.data.snippet,
+            snippet: msg.data.snippet,
+            date: new Date(getHeader('date')),
+            isRead: true,
+            labels: ['SENT', ...(msg.data.labelIds || [])]
+          };
+
+          await Email.findOneAndUpdate(
+            { emailId: msg.data.id },
+            emailData,
+            { upsert: true }
+          );
+
+          emails.push(emailData);
+        } catch (msgErr) {
+          console.warn(`Could not fetch sent message ${message.id}:`, msgErr.message);
+        }
       }
     }
 
+    cachedSentData = { timestamp: Date.now(), emails };
     res.json(emails);
   } catch (error) {
     console.error('❌ Error fetching sent emails:', error.message);
+    if (error.message?.includes('Quota') || error.message?.includes('limit') || error.code === 429) {
+      quotaCooldownUntil = Date.now() + 120000;
+    }
     try {
       const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(20);
       return res.json(cached);
@@ -994,17 +1067,6 @@ app.post('/api/emails/sync', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// Periodic background sync interval (checks every 45 seconds)
-setInterval(async () => {
-  try {
-    if (io.engine && io.engine.clientsCount > 0) {
-      io.emit('emails-synced', { count: 0, timestamp: new Date().toISOString() });
-    }
-  } catch (e) {
-    // Silent
-  }
-}, 45000);
 
 // ========================================
 // SOCKET.IO
