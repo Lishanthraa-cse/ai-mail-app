@@ -55,7 +55,7 @@ const EmailFilters = () => {
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
             }`}
           >
-            <FunnelIcon className="w-3.5 h-3.5" />
+            <FunnelIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
             <span>Filters</span>
             {activeFilterCount > 0 && (
               <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
@@ -69,7 +69,7 @@ const EmailFilters = () => {
               onClick={handleClear}
               className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-500 dark:text-slate-400 dark:hover:text-rose-400 transition-colors ml-1"
             >
-              <XMarkIcon className="w-3.5 h-3.5" />
+              <XMarkIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
               Clear filters
             </button>
           )}
@@ -80,7 +80,7 @@ const EmailFilters = () => {
             onClick={handleApply}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-xs font-semibold shadow-sm shadow-indigo-500/20 transition-all hover:scale-[1.02]"
           >
-            <CheckIcon className="w-3.5 h-3.5" />
+            <CheckIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
             Apply
           </button>
         )}
@@ -91,7 +91,7 @@ const EmailFilters = () => {
         <form onSubmit={handleApply} className="px-5 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-fadeIn">
           {/* Keyword Search */}
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <MagnifyingGlassIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               placeholder="Keyword in subject or body..."
@@ -103,7 +103,7 @@ const EmailFilters = () => {
 
           {/* Sender Filter */}
           <div className="relative">
-            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <UserIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               placeholder="Sender email or name..."
@@ -116,7 +116,7 @@ const EmailFilters = () => {
           {/* Date Range */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <CalendarDaysIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              <CalendarDaysIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
               <input
                 type="date"
                 title="From date"

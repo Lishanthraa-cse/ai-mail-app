@@ -8,7 +8,8 @@ import {
   PaperAirplaneIcon, 
   ArrowPathIcon,
   SparklesIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
 const SkeletonEmail = () => (
@@ -29,7 +30,7 @@ const SkeletonEmail = () => (
 const InboxList = ({ sent = false, onEmailSelect }) => {
   const { emails, loading, loadEmails } = useEmailContext();
   const navigate = useNavigate();
-  const [filterMode, setFilterMode] = useState('all'); // 'all', 'unread', 'starred'
+  const [filterMode, setFilterMode] = useState('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
@@ -61,7 +62,6 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Keyboard navigation: j (down), k (up), Enter/o (open) (+3 bonus)
   useEffect(() => {
     const handleKeyDown = (e) => {
       const activeTag = document.activeElement?.tagName?.toLowerCase();
@@ -92,13 +92,13 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Top Toolbar */}
-      <div className="px-5 py-3.5 border-b border-slate-200/70 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3 bg-white/30 dark:bg-slate-900/30 backdrop-blur-md">
+      <div className="px-5 py-3.5 border-b border-slate-200/50 dark:border-slate-800/50 flex flex-wrap items-center justify-between gap-3 bg-white/20 dark:bg-slate-900/20 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
             {sent ? (
-              <PaperAirplaneIcon className="w-5 h-5 -rotate-45" />
+              <PaperAirplaneIcon width={20} height={20} style={{ width: '1.25rem', height: '1.25rem' }} className="w-5 h-5 -rotate-45" />
             ) : (
-              <InboxIcon className="w-5 h-5" />
+              <InboxIcon width={20} height={20} style={{ width: '1.25rem', height: '1.25rem' }} className="w-5 h-5" />
             )}
           </div>
           <div>
@@ -107,7 +107,7 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
                 {sent ? 'Sent Messages' : 'Inbox'}
               </h2>
               {unreadCount > 0 && !sent && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500 text-white shadow-sm shadow-indigo-500/30">
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30">
                   {unreadCount} new
                 </span>
               )}
@@ -119,10 +119,9 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          {/* Quick Filter Tabs */}
+        <div className="flex items-center gap-2 flex-wrap">
           {!sent && (
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300">
+            <div className="flex items-center bg-white/60 dark:bg-slate-800/60 p-0.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
               <button
                 onClick={() => setFilterMode('all')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
@@ -143,7 +142,7 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
               >
                 Unread
                 {unreadCount > 0 && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
                 )}
               </button>
               <button
@@ -159,8 +158,7 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
             </div>
           )}
 
-          {/* Keyboard shortcut legend pill */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-500 dark:text-slate-400 font-mono select-none">
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 text-[10px] text-slate-500 dark:text-slate-400 font-mono select-none">
             <span>⌨️</span>
             <span className="font-semibold text-slate-700 dark:text-slate-300">j</span>/<span className="font-semibold text-slate-700 dark:text-slate-300">k</span>
             <span>navigate</span>
@@ -169,14 +167,13 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
             <span>open</span>
           </div>
 
-          {/* Refresh Button */}
           <button
             onClick={handleRefresh}
             title="Refresh emails"
             disabled={loading || isRefreshing}
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors disabled:opacity-50"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-800/50 rounded-xl transition-all disabled:opacity-50"
           >
-            <ArrowPathIcon className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin text-indigo-600' : ''}`} />
+            <ArrowPathIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className={`w-4 h-4 ${isRefreshing || loading ? 'animate-spin text-indigo-600' : ''}`} />
           </button>
         </div>
       </div>
@@ -194,22 +191,26 @@ const InboxList = ({ sent = false, onEmailSelect }) => {
           </div>
         ) : displayedEmails.length === 0 ? (
           <div className="h-full min-h-[320px] flex flex-col items-center justify-center text-center p-8">
-            <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-500/30 flex items-center justify-center mb-4 text-indigo-500 shadow-inner">
-              <CheckCircleIcon className="w-8 h-8" />
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-indigo-500/30 flex items-center justify-center mb-5 text-indigo-500 shadow-inner">
+              {filterMode === 'unread' ? (
+                <MagnifyingGlassIcon width={40} height={40} style={{ width: '2.5rem', height: '2.5rem' }} className="w-10 h-10" />
+              ) : (
+                <CheckCircleIcon width={40} height={40} style={{ width: '2.5rem', height: '2.5rem' }} className="w-10 h-10" />
+              )}
             </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">
               {filterMode === 'unread' ? 'No unread messages' : 'Inbox Zero achieved! 🎉'}
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mb-6 leading-relaxed">
               {filterMode === 'unread'
                 ? 'All messages have been read. Switch to "All" to view previous conversations.'
-                : "You're completely up to date! Take a breather or compose a message using the AI copilot."}
+                : "You're completely up to date! Take a breather or compose a new message."}
             </p>
             <button
               onClick={handleRefresh}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/25 transition-all hover:scale-105"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 transition-all hover:scale-105"
             >
-              <SparklesIcon className="w-4 h-4" />
+              <SparklesIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
               Check for new updates
             </button>
           </div>

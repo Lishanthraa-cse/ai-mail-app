@@ -45,7 +45,12 @@ const Header = ({ toggleTheme, isDarkMode, onToggleAssistant, showAssistant }) =
     <header className="glass rounded-3xl p-3 mb-4 flex items-center justify-between gap-4 shadow-lg shadow-indigo-500/5 border border-white/60 dark:border-white/10 z-10">
       {/* Search Bar */}
       <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-lg">
-        <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
+        <MagnifyingGlassIcon 
+          width={16} 
+          height={16} 
+          style={{ width: '1rem', height: '1rem', minWidth: '1rem', minHeight: '1rem' }}
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" 
+        />
         <input
           ref={searchInputRef}
           type="text"
@@ -62,7 +67,7 @@ const Header = ({ toggleTheme, isDarkMode, onToggleAssistant, showAssistant }) =
               onClick={handleClearSearch}
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
             >
-              <XMarkIcon className="w-3.5 h-3.5" />
+              <XMarkIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
             </button>
           )}
           <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium rounded-lg bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border border-slate-300/40 dark:border-slate-600/40">
@@ -84,7 +89,7 @@ const Header = ({ toggleTheme, isDarkMode, onToggleAssistant, showAssistant }) =
           }`}
         >
           <div className="relative">
-            <SparklesIcon className="w-4 h-4 text-indigo-500" />
+            <SparklesIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-indigo-500" />
             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
           </div>
           <span className="hidden sm:inline">Copilot</span>
@@ -97,9 +102,9 @@ const Header = ({ toggleTheme, isDarkMode, onToggleAssistant, showAssistant }) =
           className="p-2.5 rounded-2xl bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200/60 dark:border-slate-700/60 transition-all hover:scale-105 shadow-sm"
         >
           {isDarkMode ? (
-            <SunIcon className="w-4 h-4 text-amber-400" />
+            <SunIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-amber-400" />
           ) : (
-            <MoonIcon className="w-4 h-4 text-slate-600" />
+            <MoonIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-slate-600" />
           )}
         </button>
       </div>

@@ -156,7 +156,7 @@ const EmailDetail = () => {
           onClick={() => navigate('/inbox')}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-all"
         >
-          <ArrowLeftIcon className="w-3.5 h-3.5" />
+          <ArrowLeftIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
           <span>Back to Inbox</span>
         </button>
 
@@ -166,19 +166,19 @@ const EmailDetail = () => {
             title="Reply"
             className="p-2 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
           >
-            <ArrowUturnLeftIcon className="w-4 h-4" />
+            <ArrowUturnLeftIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
           </button>
           <button
             title="Star"
             className="p-2 text-slate-500 hover:text-amber-500 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
           >
-            <StarIcon className="w-4 h-4" />
+            <StarIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
           </button>
           <button
             title="Delete"
             className="p-2 text-slate-500 hover:text-rose-500 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
           >
-            <TrashIcon className="w-4 h-4" />
+            <TrashIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -205,7 +205,7 @@ const EmailDetail = () => {
                 <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
                   {senderName}
                 </p>
-                <CheckBadgeIcon className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                <CheckBadgeIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-indigo-500 flex-shrink-0" />
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {senderEmail}
@@ -218,7 +218,7 @@ const EmailDetail = () => {
         {isLong && (
           <div className="rounded-2xl p-4 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 dark:border-indigo-400/20 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-              <SparklesIcon className="w-4 h-4" />
+              <SparklesIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
               <span>AI Instant Summary</span>
             </div>
             <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
@@ -232,7 +232,7 @@ const EmailDetail = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                <ChatBubbleLeftRightIcon className="w-4 h-4 text-indigo-500" />
+                <ChatBubbleLeftRightIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-indigo-500" />
                 <span>Conversation Thread ({threadMessages.length} messages)</span>
               </div>
               <button
@@ -305,9 +305,9 @@ const EmailDetail = () => {
                           {msg.date ? new Date(msg.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                         {isExpanded ? (
-                          <ChevronUpIcon className="w-4 h-4 text-slate-400" />
+                          <ChevronUpIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-slate-400" />
                         ) : (
-                          <ChevronDownIcon className="w-4 h-4 text-slate-400" />
+                          <ChevronDownIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-slate-400" />
                         )}
                       </div>
                     </div>
@@ -333,7 +333,7 @@ const EmailDetail = () => {
         {/* Smart Quick Reply Suggestions */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-            <SparklesIcon className="w-3.5 h-3.5 text-indigo-500" />
+            <SparklesIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5 text-indigo-500" />
             <span>AI Quick Replies</span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -380,7 +380,7 @@ const EmailDetail = () => {
                 disabled={sendingReply}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-semibold shadow-md shadow-indigo-500/25 transition-all disabled:opacity-50"
               >
-                <PaperAirplaneIcon className="w-3.5 h-3.5" />
+                <PaperAirplaneIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
                 {sendingReply ? 'Sending...' : 'Send Reply'}
               </button>
             </div>

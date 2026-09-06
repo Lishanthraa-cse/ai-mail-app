@@ -132,7 +132,7 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
 
             <div className="flex items-center gap-2 flex-shrink-0">
               {email.hasAttachments && (
-                <PaperClipIcon className="w-3.5 h-3.5 text-slate-400" />
+                <PaperClipIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5 text-slate-400" />
               )}
               <span className={`text-xs ${!isRead ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
                 {formatDate(email.date)}
@@ -164,9 +164,9 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
             className="p-1.5 text-slate-400 hover:text-amber-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             {isStarred ? (
-              <StarSolid className="w-4 h-4 text-amber-500" />
+              <StarSolid width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-amber-500" />
             ) : (
-              <StarOutline className="w-4 h-4" />
+              <StarOutline width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
             )}
           </button>
 
@@ -176,9 +176,9 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
             className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             {isRead ? (
-              <EnvelopeIcon className="w-4 h-4" />
+              <EnvelopeIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
             ) : (
-              <EnvelopeOpenIcon className="w-4 h-4" />
+              <EnvelopeOpenIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
             )}
           </button>
 
@@ -188,7 +188,7 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
               title="Delete"
               className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
-              <TrashIcon className="w-4 h-4" />
+              <TrashIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
             </button>
           )}
         </div>

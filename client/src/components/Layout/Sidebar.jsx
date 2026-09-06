@@ -45,7 +45,7 @@ const Sidebar = ({ onCompose, onLogout }) => {
       <div className="glass rounded-3xl p-5 mb-4 flex flex-col gap-3 shadow-lg shadow-indigo-500/5 border border-white/60 dark:border-white/10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25">
-            <SparklesIcon className="w-5 h-5 animate-pulse" />
+            <SparklesIcon width={20} height={20} style={{ width: '1.25rem', height: '1.25rem' }} className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <h1 className="text-base font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 dark:from-white dark:via-indigo-200 dark:to-slate-200 bg-clip-text text-transparent">
@@ -66,7 +66,7 @@ const Sidebar = ({ onCompose, onLogout }) => {
           className="group relative w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:via-purple-500 hover:to-indigo-600 text-white font-semibold text-sm shadow-md shadow-indigo-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-indigo-500/30 hover:-translate-y-0.5"
         >
           <div className="flex items-center gap-2.5">
-            <PencilSquareIcon className="w-4 h-4 transition-transform group-hover:rotate-12" />
+            <PencilSquareIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 transition-transform group-hover:rotate-12" />
             <span>Compose</span>
           </div>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] uppercase font-mono font-medium rounded bg-white/20 text-white/90">
@@ -94,7 +94,7 @@ const Sidebar = ({ onCompose, onLogout }) => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <item.icon className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                  <item.icon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
@@ -128,7 +128,7 @@ const Sidebar = ({ onCompose, onLogout }) => {
               title="Logout"
               className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl transition-colors"
             >
-              <ArrowRightOnRectangleIcon className="w-4 h-4" />
+              <ArrowRightOnRectangleIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
             </button>
           </div>
         </div>

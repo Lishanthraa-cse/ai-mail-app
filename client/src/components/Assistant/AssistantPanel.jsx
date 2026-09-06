@@ -321,7 +321,7 @@ Try one of the chips below or type any command! ✨`
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
-          <SparklesIcon className="w-3.5 h-3.5" />
+          <SparklesIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
           <span>Active</span>
         </div>
       </div>
@@ -356,7 +356,7 @@ Try one of the chips below or type any command! ✨`
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white truncate">
-                          <EnvelopeIcon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                          <EnvelopeIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                           <span className="truncate">{preview.subject || '(No subject)'}</span>
                         </div>
                         <p className="text-[10px] text-slate-400 truncate">
@@ -371,7 +371,7 @@ Try one of the chips below or type any command! ✨`
                         className="px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold flex items-center gap-1 hover:bg-indigo-100"
                       >
                         <span>Open</span>
-                        <ArrowTopRightOnSquareIcon className="w-3 h-3" />
+                        <ArrowTopRightOnSquareIcon width={12} height={12} style={{ width: '0.75rem', height: '0.75rem' }} className="w-3 h-3" />
                       </button>
                     </div>
                   ))}
@@ -383,12 +383,12 @@ Try one of the chips below or type any command! ✨`
                 <div className="p-3 rounded-xl bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                      <SparklesIcon className="w-3.5 h-3.5" />
+                      <SparklesIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
                       {message.actionCard.status === 'sent' ? 'Email Sent' : 'Confirmation Required'}
                     </span>
                     {message.actionCard.status === 'sent' && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                        <CheckCircleIcon className="w-3.5 h-3.5" />
+                        <CheckCircleIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5" />
                         Dispatched
                       </span>
                     )}
@@ -401,14 +401,14 @@ Try one of the chips below or type any command! ✨`
                         disabled={sendingMessageId === message.id}
                         className="flex-1 py-1.5 px-3 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-[11px] font-bold shadow-sm flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
                       >
-                        <PaperAirplaneIcon className="w-3 h-3" />
+                        <PaperAirplaneIcon width={12} height={12} style={{ width: '0.75rem', height: '0.75rem' }} className="w-3 h-3" />
                         {sendingMessageId === message.id ? 'Sending...' : 'Send Now'}
                       </button>
                       <button
                         onClick={() => handleEditDraft(message.actionCard)}
                         className="py-1.5 px-3 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-600 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 flex items-center gap-1"
                       >
-                        <PencilSquareIcon className="w-3 h-3" />
+                        <PencilSquareIcon width={12} height={12} style={{ width: '0.75rem', height: '0.75rem' }} className="w-3 h-3" />
                         Edit Form
                       </button>
                     </div>
@@ -478,7 +478,7 @@ Try one of the chips below or type any command! ✨`
             disabled={!input.trim() || isProcessing}
             className="p-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl transition-all shadow-md shadow-indigo-500/25 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105"
           >
-            <PaperAirplaneIcon className="w-4 h-4" />
+            <PaperAirplaneIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
           </button>
         </div>
       </div>
