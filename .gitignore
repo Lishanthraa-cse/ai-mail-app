@@ -193,12 +193,6 @@ coverage/
 .nyc_output/
 *.lcov
 *.coverage
-*.test.js
-*.spec.js
-*.test.ts
-*.spec.ts
-*.test.tsx
-*.spec.tsx
 .vscode-test/
 *.snap
 test-results/
@@ -360,10 +354,6 @@ dev.*.env
 *.ts.map
 *.js.map
 *.d.ts.map
-*.js
-!*.d.ts
-*.ts
-!*.d.ts
 
 # ----------------------------
 # React / Next.js Specific
