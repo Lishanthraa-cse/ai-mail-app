@@ -8,24 +8,6 @@
 > An intelligent email client where an AI assistant controls the UI through natural language commands. 
 > Compose emails, search messages, apply filters, and navigate - all through conversation.
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Tech Stack](#-tech-stack)
-- [Architecture Decisions](#-architecture-decisions)
-- [Setup Instructions](#-setup-instructions)
-- [How to Run](#-how-to-run)
-- [AI Commands Examples](#-ai-commands-examples)
-- [Video Demo](#-video-demo)
-- [Screenshots](#-screenshots)
-- [What I'd Improve](#-what-id-improve)
-- [Trade-offs](#-trade-offs)
-- [Troubleshooting](#-troubleshooting)
-
----
 
 ## 📖 Overview
 
