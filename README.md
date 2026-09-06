@@ -258,3 +258,4 @@ curl -X POST http://localhost:5000/api/emails/simulate-incoming \
 
 ## 📜 License
 MIT License — Built for the **Nebula KnowLab Hiring Task**.
+
