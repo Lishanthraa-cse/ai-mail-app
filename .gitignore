@@ -1,0 +1,415 @@
+# ============================================
+# AI-Powered Mail Application - .gitignore
+# ============================================
+
+# ----------------------------
+# Node.js / NPM
+# ----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npmrc
+
+# ----------------------------
+# Environment Variables
+# ----------------------------
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+*.env
+*.env.local
+
+# ----------------------------
+# Server Specific
+# ----------------------------
+server/node_modules/
+server/.env
+server/.env.local
+server/package-lock.json
+server/yarn.lock
+server/dist/
+server/build/
+server/logs/
+server/*.log
+server/.cache/
+
+# ----------------------------
+# Client Specific
+# ----------------------------
+client/node_modules/
+client/.env
+client/.env.local
+client/package-lock.json
+client/yarn.lock
+client/build/
+client/dist/
+client/.cache/
+client/*.log
+
+# ----------------------------
+# IDE / Editor Files
+# ----------------------------
+# Visual Studio Code
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ / WebStorm / PhpStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+.sublime/
+
+# Atom
+.atom/
+*.atom
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ----------------------------
+# OS Specific Files
+# ----------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.ds_store
+*.DS_Store
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+
+# Linux
+*~
+.directory
+*.pid
+*.seed
+*.pid.lock
+
+# ----------------------------
+# Logs and Temporary Files
+# ----------------------------
+logs/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+
+# ----------------------------
+# Build / Distribution
+# ----------------------------
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+.vercel/
+.netlify/
+
+# ----------------------------
+# Database Files
+# ----------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+*.ldb
+*.log
+*.journal
+*-journal
+*.mongodb
+/data/
+/db/
+/mongodb/
+
+# ----------------------------
+# Docker Files
+# ----------------------------
+docker-compose.override.yml
+.docker/
+docker-data/
+*.dockerignore
+
+# ----------------------------
+# Testing / Coverage
+# ----------------------------
+coverage/
+.nyc_output/
+*.lcov
+*.coverage
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+*.test.tsx
+*.spec.tsx
+.vscode-test/
+*.snap
+test-results/
+
+# ----------------------------
+# Security / Keys
+# ----------------------------
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+.secrets/
+secret/
+keys/
+certs/
+credentials.json
+client_secret*.json
+service-account*.json
+*.p8
+*.p12
+
+# ----------------------------
+# AI / ML Files
+# ----------------------------
+*.h5
+*.pb
+*.onnx
+*.tflite
+*.model
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnxruntime
+*.cache
+*.jsonl
+
+# ----------------------------
+# CI / CD
+# ----------------------------
+.github/
+.gitlab/
+.azuredevops/
+.travis.yml
+.gitlab-ci.yml
+.circleci/
+.drone.yml
+.jenkins/
+.gitpod.yml
+
+# ----------------------------
+# Miscellaneous
+# ----------------------------
+*.zip
+*.rar
+*.tar.gz
+*.tgz
+*.7z
+*.pkg
+*.deb
+*.rpm
+*.dmg
+*.exe
+*.msi
+.DS_Store
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.patch
+*.diff
+*.swo
+*.swp
+.terraform/
+*.tfstate
+*.tfstate.*
+.terragrunt-cache/
+
+# ----------------------------
+# Project Specific
+# ----------------------------
+# Gmail OAuth cache
+gmail-token.json
+oauth2.json
+*.oath2
+
+# OpenAI cache
+openai-cache/
+*.cache
+
+# MongoDB data
+mongodb-data/
+/data/db/
+
+# Uploads / Attachments
+uploads/
+attachments/
+*.eml
+*.msg
+
+# Reports / Exports
+reports/
+exports/
+*.pdf
+*.pptx
+*.xlsx
+*.csv
+
+# Debug files
+*.debug
+debug-*.log
+trace-*.log
+
+# ----------------------------
+# Environment Specific
+# ----------------------------
+# Production
+production.env
+prod.env
+prod.*.env
+
+# Staging
+staging.env
+stage.env
+staging.*.env
+
+# Development
+development.env
+dev.env
+dev.*.env
+
+# ----------------------------
+# VS Code Settings (Optional)
+# ----------------------------
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/settings.json
+.vscode/extensions.json
+.vscode/*.code-snippets
+
+# ----------------------------
+# ESLint / Prettier Cache
+# ----------------------------
+.eslintcache
+.prettiercache
+.stylelintcache
+
+# ----------------------------
+# TypeScript (if using TS)
+# ----------------------------
+*.tsbuildinfo
+*.ts.map
+*.js.map
+*.d.ts.map
+*.js
+!*.d.ts
+*.ts
+!*.d.ts
+
+# ----------------------------
+# React / Next.js Specific
+# ----------------------------
+.serverless/
+.fastly/
+.next/
+out/
+build/
+dist/
+node_modules/.cache/
+
+# ----------------------------
+# PM2 / Process Managers
+# ----------------------------
+.pm2/
+pm2-*.log
+*.pid
+*.pid.log
+
+# ----------------------------
+# SSL Certificates (local)
+# ----------------------------
+certificates/
+ssl/
+*.crt
+*.key
+*.pem
+*.p12
+*.csr
+*.der
+
+# ----------------------------
+# Docker Volumes
+# ----------------------------
+/volumes/
+/data/
+/db-data/
+
+# ----------------------------
+# All environment files
+# ----------------------------
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!.env.sample
+!.env.template
