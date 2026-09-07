@@ -8,10 +8,12 @@ router.get('/google', passport.authenticate('google', {
   scope: ['email', 'profile', 'https://www.googleapis.com/auth/gmail.modify']
 }));
 
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
 // Google OAuth callback
 router.get('/google/callback', 
   passport.authenticate('google', { 
-    failureRedirect: 'http://localhost:3000/login',
+    failureRedirect: `${CLIENT_URL}/login`,
     session: true 
   }),
   (req, res) => {
@@ -23,10 +25,10 @@ router.get('/google/callback',
         { expiresIn: '7d' }
       );
       
-      res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
+      res.redirect(`${CLIENT_URL}/auth/callback?token=${token}`);
     } catch (error) {
       console.error('Auth callback error:', error);
-      res.redirect('http://localhost:3000/login?error=auth_failed');
+      res.redirect(`${CLIENT_URL}/login?error=auth_failed`);
     }
   }
 );

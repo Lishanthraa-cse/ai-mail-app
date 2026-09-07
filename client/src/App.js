@@ -11,6 +11,8 @@ import AssistantPanel from './components/Assistant/AssistantPanel';
 import { initializeSocket } from './services/socket';
 import './styles/App.css';
 
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+
 function AppContent({ 
   isDarkMode, 
   toggleTheme, 
@@ -206,7 +208,7 @@ function App() {
           
           <div className="space-y-3">
             <a
-              href="http://localhost:5000/api/auth/google"
+              href={`${SERVER_URL}/api/auth/google`}
               className="login-button"
             >
               <svg className="login-google-icon" width={20} height={20} style={{ width: 20, height: 20 }} viewBox="0 0 24 24">

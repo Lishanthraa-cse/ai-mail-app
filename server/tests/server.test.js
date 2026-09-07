@@ -61,3 +61,4 @@ test('Filter Logic isolates unread emails', () => {
   const unreadOnly = emails.filter(e => !e.isRead);
   assert.strictEqual(unreadOnly.length, 2);
 });
+

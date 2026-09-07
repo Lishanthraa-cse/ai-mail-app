@@ -18,18 +18,20 @@ try {
   // ignore
 }
 
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: [CLIENT_URL, 'http://localhost:3000'],
     credentials: true,
   },
 });
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: [CLIENT_URL, 'http://localhost:3000'],
   credentials: true,
 }));
 app.use(express.json());
@@ -239,7 +241,7 @@ app.get('/api/auth/google', passport.authenticate('google', {
 }));
 
 app.get('/api/auth/google/callback', passport.authenticate('google', {
-  failureRedirect: 'http://localhost:3000/login',
+  failureRedirect: `${CLIENT_URL}/login`,
   session: true,
 }), (req, res) => {
   const token = jwt.sign(
@@ -247,7 +249,7 @@ app.get('/api/auth/google/callback', passport.authenticate('google', {
     process.env.JWT_SECRET || 'secret',
     { expiresIn: '7d' }
   );
-  res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
+  res.redirect(`${CLIENT_URL}/auth/callback?token=${token}`);
 });
 
 app.get('/api/auth/me', async (req, res) => {

@@ -28,3 +28,4 @@ describe('Client Utilities & Formatting', () => {
     expect(idx1).toBe(idx2);
   });
 });
+
