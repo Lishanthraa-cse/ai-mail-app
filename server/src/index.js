@@ -250,10 +250,72 @@ app.get('/api/auth/google/callback', passport.authenticate('google', {
   res.redirect(`${CLIENT_URL}/auth/callback?token=${token}`);
 });
 
+// Demo preview sample emails for seamless instant exploration
+const DEMO_EMAILS = [
+  {
+    emailId: 'demo-1',
+    threadId: 'thread-q4-ai-roadmap',
+    threadCount: 2,
+    from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
+    to: [{ name: 'You', email: 'user@aimail.com' }],
+    subject: 'Quarterly AI Roadmap & Integration Strategy',
+    snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
+    body: 'Hey team,\n\nI put together the draft for our upcoming Q4 AI agent rollout. Please take a look at the attached doc before our sync tomorrow at 10 AM.\n\nKey highlights:\n- Direct LLM function calling for inbox actions\n- Sub-second UI paint response\n- Automated draft generation and summary\n\nLooking forward to your feedback!\n\nBest,\nAlex Rivera\nVP of Product, TechCorp',
+    date: new Date(Date.now() - 45 * 60000),
+    isRead: false,
+    labels: ['INBOX', 'IMPORTANT']
+  },
+  {
+    emailId: 'demo-1-reply',
+    threadId: 'thread-q4-ai-roadmap',
+    from: { name: 'Elena Rostova', email: 'elena@techcorp.io' },
+    to: [{ name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' }, { name: 'You', email: 'user@aimail.com' }],
+    subject: 'Re: Quarterly AI Roadmap & Integration Strategy',
+    snippet: 'I reviewed the proposal and strongly agree with the direct LLM approach.',
+    body: 'Hi Alex,\n\nI reviewed the proposal and strongly agree with the direct LLM approach. We should ensure sub-second latency for UI form filling and keep the fallback intent parser resilient.\n\nI will prepare the telemetry benchmarks ahead of the 10 AM sync.\n\nBest,\nElena Rostova\nLead AI Architect',
+    date: new Date(Date.now() - 15 * 60000),
+    isRead: true,
+    labels: ['INBOX']
+  },
+  {
+    emailId: 'demo-2',
+    threadId: 'thread-design-review',
+    from: { name: 'Sarah Chen', email: 'sarah.c@designsystems.dev' },
+    subject: 'Design Review: Glassmorphic UI & Micro-Interactions',
+    snippet: 'The new frosted glass components and micro-interactions look incredible!',
+    body: 'Hi everyone,\n\nThe new frosted glass components and micro-interactions look incredible! Loved the vibrant gradient avatars and instant AI replies.\n\nThe typography contrasts nicely against both light and dark themes, and all buttons pass accessibility guidelines.\n\nLet me know when the final build is deployed.\n\nCheers,\nSarah Chen',
+    date: new Date(Date.now() - 2 * 3600000),
+    isRead: false,
+    labels: ['INBOX']
+  },
+  {
+    emailId: 'demo-3',
+    threadId: 'thread-stripe-billing',
+    from: { name: 'Stripe Billing', email: 'invoices@stripe.com' },
+    subject: 'Invoice #INV-2026-0906 for Workspace Pro',
+    snippet: 'Your invoice for the period Sep 1 – Sep 30 is ready.',
+    body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Assistant Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
+    date: new Date(Date.now() - 22 * 3600000),
+    isRead: true,
+    labels: ['INBOX', 'FINANCE']
+  },
+  {
+    emailId: 'demo-4',
+    threadId: 'thread-security-alert',
+    from: { name: 'Google Cloud Security', email: 'no-reply@accounts.google.com' },
+    subject: 'Security Alert: New sign-in detected on Windows',
+    snippet: 'We noticed a new login to your Google Account from Windows 11.',
+    body: 'Hi User,\n\nA new login was detected from your Windows workstation.\n\nDevice: Windows 11 Desktop\nLocation: Localhost\n\nIf you recognize this activity, you can safely ignore this notification.\n\nGoogle Cloud Security Team',
+    date: new Date(Date.now() - 48 * 3600000),
+    isRead: true,
+    labels: ['INBOX', 'SECURITY']
+  }
+];
+
 app.get('/api/auth/me', async (req, res) => {
   try {
     if (req.isAuthenticated()) {
-      res.json({
+      return res.json({
         user: {
           id: req.user.id,
           email: req.user.email,
@@ -264,6 +326,16 @@ app.get('/api/auth/me', async (req, res) => {
     } else {
       const token = req.headers.authorization?.split(' ')[1];
       if (token) {
+        if (token === 'demo_preview_token' || token.startsWith('demo_')) {
+          return res.json({
+            user: {
+              id: 'demo-user-id',
+              email: 'demo.user@aimail.com',
+              name: 'Demo User',
+              picture: null
+            }
+          });
+        }
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
         const user = await User.findById(decoded.userId);
         if (user) {
@@ -277,10 +349,10 @@ app.get('/api/auth/me', async (req, res) => {
           });
         }
       }
-      res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ error: 'Not authenticated' });
     }
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({ error: 'Invalid token' });
   }
 });
 
@@ -297,6 +369,17 @@ const authenticateToken = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (token === 'demo_preview_token' || token.startsWith('demo_')) {
+      req.user = {
+        _id: '000000000000000000000000',
+        id: 'demo-user-id',
+        email: 'demo.user@aimail.com',
+        name: 'Demo User',
+        isDemo: true
+      };
+      return next();
     }
 
     let decoded;
@@ -322,6 +405,14 @@ const authenticateToken = async (req, res, next) => {
 // Email Routes with Quota Protection & Caching
 app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
   try {
+    if (req.user?.isDemo) {
+      const cached = await Email.find().sort({ date: -1 }).limit(50);
+      if (cached && cached.length > 0) {
+        return res.json(cached);
+      }
+      return res.json(DEMO_EMAILS);
+    }
+
     const now = Date.now();
     // 1. Quota cooldown guard
     if (now < quotaCooldownUntil) {
@@ -424,6 +515,11 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
 
 app.get('/api/emails/sent', authenticateToken, async (req, res) => {
   try {
+    if (req.user?.isDemo) {
+      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(50);
+      return res.json(cached || []);
+    }
+
     const now = Date.now();
     if (now < quotaCooldownUntil) {
       const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(50);
@@ -601,54 +697,7 @@ app.get('/api/emails/:id', async (req, res) => {
   try {
     let email = await Email.findOne({ emailId: req.params.id });
     if (!email) {
-      // Fallback for demo emails
-      const demoEmails = [
-        {
-          emailId: 'demo-1',
-          threadId: 'thread-q4-ai-roadmap',
-          from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
-          subject: 'Quarterly AI Roadmap & Integration Strategy',
-          snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
-          body: 'Hey team,\n\nI put together the draft for our upcoming Q4 AI agent rollout. Please take a look at the attached doc before our sync tomorrow at 10 AM.\n\nKey highlights:\n- Direct LLM function calling for inbox actions\n- Sub-second UI paint response\n- Automated draft generation and summary\n\nLooking forward to your feedback!\n\nBest,\nAlex Rivera\nVP of Product, TechCorp',
-          date: new Date(Date.now() - 45 * 60000),
-          isRead: true,
-          labels: ['INBOX', 'IMPORTANT']
-        },
-        {
-          emailId: 'demo-2',
-          threadId: 'thread-design-review',
-          from: { name: 'Sarah Chen', email: 'sarah.c@designsystems.dev' },
-          subject: 'Design Review: Glassmorphic UI & Micro-Interactions',
-          snippet: 'The new frosted glass components and micro-interactions look incredible!',
-          body: 'Hi everyone,\n\nThe new frosted glass components and micro-interactions look incredible! Loved the vibrant gradient avatars and instant AI replies.\n\nThe typography contrasts nicely against both light and dark themes, and all buttons pass accessibility guidelines.\n\nLet me know when the final build is deployed.\n\nCheers,\nSarah Chen',
-          date: new Date(Date.now() - 2 * 3600000),
-          isRead: false,
-          labels: ['INBOX']
-        },
-        {
-          emailId: 'demo-3',
-          threadId: 'thread-stripe-billing',
-          from: { name: 'Stripe Billing', email: 'invoices@stripe.com' },
-          subject: 'Invoice #INV-2026-0906 for Workspace Pro',
-          snippet: 'Your invoice for the period Sep 1 – Sep 30 is ready.',
-          body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Assistant Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
-          date: new Date(Date.now() - 22 * 3600000),
-          isRead: true,
-          labels: ['INBOX', 'FINANCE']
-        },
-        {
-          emailId: 'demo-4',
-          threadId: 'thread-security-alert',
-          from: { name: 'Google Cloud Security', email: 'no-reply@accounts.google.com' },
-          subject: 'Security Alert: New sign-in detected on Windows',
-          snippet: 'We noticed a new login to your Google Account from Windows 11.',
-          body: 'Hi User,\n\nA new login was detected from your Windows workstation.\n\nDevice: Windows 11 Desktop\nLocation: Localhost\n\nIf you recognize this activity, you can safely ignore this notification.\n\nGoogle Cloud Security Team',
-          date: new Date(Date.now() - 48 * 3600000),
-          isRead: true,
-          labels: ['INBOX', 'SECURITY']
-        }
-      ];
-      email = demoEmails.find(e => e.emailId === req.params.id);
+      email = DEMO_EMAILS.find(e => e.emailId === req.params.id);
       if (email) return res.json(email);
       return res.status(404).json({ error: 'Email not found' });
     }
@@ -663,6 +712,33 @@ app.get('/api/emails/:id', async (req, res) => {
 app.post('/api/emails/send', authenticateToken, async (req, res) => {
   try {
     const { to, subject, body } = req.body;
+
+    if (req.user?.isDemo) {
+      const demoMessageId = 'demo-sent-' + Date.now();
+      try {
+        await Email.create({
+          userId: req.user._id,
+          emailId: demoMessageId,
+          threadId: 'thread-' + demoMessageId,
+          from: { name: 'Demo User', email: 'demo.user@aimail.com' },
+          to: [{ name: to, email: to }],
+          subject,
+          body,
+          snippet: body ? body.substring(0, 100) : '',
+          date: new Date(),
+          isRead: true,
+          labels: ['SENT']
+        });
+      } catch (dbErr) {
+        // Ignore DB save errors in demo
+      }
+      return res.json({
+        success: true,
+        messageId: demoMessageId,
+        threadId: 'thread-' + demoMessageId
+      });
+    }
+
     const gmail = await getGmailClient(req.user);
 
     const message = [

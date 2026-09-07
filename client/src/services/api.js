@@ -23,6 +23,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const token = localStorage.getItem('token');
+      if (token && token.startsWith('demo_')) {
+        return Promise.reject(error);
+      }
       localStorage.removeItem('token');
       // Only redirect if NOT already at root or login to prevent reload loops
       const currentPath = window.location.pathname;
