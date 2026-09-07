@@ -2,7 +2,7 @@ import { io } from 'socket.io-client';
 
 let socket = null;
 
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_SERVER_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '/' : 'http://localhost:5000');
 
 export const initializeSocket = () => {
   if (!socket) {

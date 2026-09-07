@@ -1,0 +1,9 @@
+{
+  "name": "ai-mail-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd client && npm install && npm run build && cd ../server && npm install",
+    "start": "node server/src/index.js"
+  }
+}

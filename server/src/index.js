@@ -18,20 +18,23 @@ try {
   // ignore
 }
 
+const path = require('path');
+const fs = require('fs');
+
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [CLIENT_URL, 'http://localhost:3000'],
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
   },
 });
 
 // Middleware
 app.use(cors({
-  origin: [CLIENT_URL, 'http://localhost:3000'],
+  origin: (origin, callback) => callback(null, true),
   credentials: true,
 }));
 app.use(express.json());
@@ -1175,6 +1178,21 @@ io.on('connection', (socket) => {
     // disconnected
   });
 });
+
+// ========================================
+// SERVE STATIC CLIENT (Single Deployment)
+// ========================================
+
+const clientBuildPath = path.resolve(__dirname, '../../client/build');
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.resolve(clientBuildPath, 'index.html'));
+  });
+}
 
 // ========================================
 // START SERVER

@@ -11,7 +11,7 @@ import AssistantPanel from './components/Assistant/AssistantPanel';
 import { initializeSocket } from './services/socket';
 import './styles/App.css';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_API_URL?.replace(/\/api$/, '') || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? '' : 'http://localhost:5000');
 
 function AppContent({ 
   isDarkMode, 
