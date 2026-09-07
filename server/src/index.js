@@ -803,82 +803,180 @@ const handleAiCommand = async (req, res) => {
     let message = parsed.message || `Action ${parsed.action} processed`;
 
     if (parsed.action === 'SEARCH') {
-      const searchTerm = parsed.data?.search || parsed.data?.query || '';
-      const query = {};
-      if (searchTerm) {
-        query.$or = [
-          { subject: { $regex: searchTerm, $options: 'i' } },
-          { body: { $regex: searchTerm, $options: 'i' } },
-          { snippet: { $regex: searchTerm, $options: 'i' } },
-          { 'from.email': { $regex: searchTerm, $options: 'i' } }
-        ];
+      const sender = parsed.data?.sender;
+      const keyword = parsed.data?.keyword;
+      const rawSearch = parsed.data?.search || parsed.data?.query || '';
+      const searchTerm = keyword || rawSearch;
+
+      const andClauses = [];
+
+      // 1. Sender matching
+      if (sender) {
+        const senderOpts = [sender];
+        if (sender.length > 4 && /^[a-z][A-Z]/i.test(sender)) {
+          senderOpts.push(sender.slice(1));
+        }
+        andClauses.push({
+          $or: senderOpts.flatMap(opt => [
+            { 'from.email': { $regex: opt, $options: 'i' } },
+            { 'from.name': { $regex: opt, $options: 'i' } }
+          ])
+        });
       }
-      result = await Email.find(query).sort({ date: -1 }).limit(20);
-      
-      // Fallback to sample emails if database is empty
+
+      // 2. Keyword matching
+      if (searchTerm) {
+        // Clean search term if it has phrases like "from ..."
+        let cleanTerm = searchTerm;
+        if (cleanTerm.toLowerCase().startsWith('from ') && sender) {
+          cleanTerm = keyword || '';
+        }
+        if (cleanTerm) {
+          andClauses.push({
+            $or: [
+              { subject: { $regex: cleanTerm, $options: 'i' } },
+              { body: { $regex: cleanTerm, $options: 'i' } },
+              { snippet: { $regex: cleanTerm, $options: 'i' } },
+              { 'from.email': { $regex: cleanTerm, $options: 'i' } },
+              { 'from.name': { $regex: cleanTerm, $options: 'i' } }
+            ]
+          });
+        }
+      }
+
+      // 3. Date filtering if present
+      if (parsed.data?.dateDays) {
+        const cutoff = new Date(Date.now() - parsed.data.dateDays * 24 * 60 * 60 * 1000);
+        andClauses.push({ date: { $gte: cutoff } });
+      }
+
+      const query = andClauses.length > 0 ? (andClauses.length === 1 ? andClauses[0] : { $and: andClauses }) : {};
+      result = await Email.find(query).sort({ date: -1 }).limit(50);
+
+      // Resilient fallback: If combined (sender + keyword) returned 0, try keyword alone or sender alone
+      if (result.length === 0 && sender && searchTerm) {
+        result = await Email.find({
+          $or: [
+            { subject: { $regex: searchTerm, $options: 'i' } },
+            { body: { $regex: searchTerm, $options: 'i' } },
+            { snippet: { $regex: searchTerm, $options: 'i' } }
+          ]
+        }).sort({ date: -1 }).limit(20);
+      }
+
+      // Fallback to sample emails if database is completely empty
       if (result.length === 0) {
-        result = [
-          {
-            emailId: 'demo-1',
-            from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
-            subject: 'Quarterly AI Roadmap & Integration Strategy',
-            snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
-            body: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
-            date: new Date(Date.now() - 18 * 60000),
-            isRead: false
-          },
-          {
-            emailId: 'demo-2',
-            from: { name: 'Sarah Chen', email: 'sarah.c@designsystems.dev' },
-            subject: 'Design Review: Glassmorphic UI & Micro-Interactions',
-            snippet: 'The new frosted glass components and micro-interactions look incredible!',
-            body: 'The new frosted glass components and micro-interactions look incredible!',
-            date: new Date(Date.now() - 2 * 3600000),
-            isRead: false
-          }
-        ].filter(e => !searchTerm || e.subject.toLowerCase().includes(searchTerm.toLowerCase()) || e.body.toLowerCase().includes(searchTerm.toLowerCase()));
+        const totalCount = await Email.countDocuments();
+        if (totalCount === 0) {
+          result = [
+            {
+              emailId: 'demo-1',
+              from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
+              subject: 'Quarterly AI Roadmap & Integration Strategy',
+              snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
+              body: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
+              date: new Date(Date.now() - 18 * 60000),
+              isRead: false
+            },
+            {
+              emailId: 'demo-2',
+              from: { name: 'Sarah Chen', email: 'sarah.c@designsystems.dev' },
+              subject: 'Design Review: Glassmorphic UI & Micro-Interactions',
+              snippet: 'The new frosted glass components and micro-interactions look incredible!',
+              body: 'The new frosted glass components and micro-interactions look incredible!',
+              date: new Date(Date.now() - 2 * 3600000),
+              isRead: false
+            }
+          ];
+        }
       }
       message = `Found ${result.length} matching emails`;
     } else if (parsed.action === 'FILTER') {
-      const query = {};
-      if (parsed.data?.unread || parsed.data?.unreadOnly) query.isRead = false;
-      if (parsed.data?.sender) query['from.email'] = { $regex: parsed.data.sender, $options: 'i' };
+      const andClauses = [];
+
+      // 1. Unread filter
+      if (parsed.data?.unread || parsed.data?.unreadOnly) {
+        andClauses.push({ isRead: false });
+      }
+
+      // 2. Sender filter (support both name and email)
+      if (parsed.data?.sender) {
+        const sender = parsed.data.sender;
+        const senderOpts = [sender];
+        if (sender.length > 4 && /^[a-z][A-Z]/i.test(sender)) {
+          senderOpts.push(sender.slice(1));
+        }
+        andClauses.push({
+          $or: senderOpts.flatMap(opt => [
+            { 'from.email': { $regex: opt, $options: 'i' } },
+            { 'from.name': { $regex: opt, $options: 'i' } }
+          ])
+        });
+      }
+
+      // 3. Keyword filter
       if (parsed.data?.keyword) {
-        query.$or = [
-          { subject: { $regex: parsed.data.keyword, $options: 'i' } },
-          { body: { $regex: parsed.data.keyword, $options: 'i' } }
-        ];
+        andClauses.push({
+          $or: [
+            { subject: { $regex: parsed.data.keyword, $options: 'i' } },
+            { body: { $regex: parsed.data.keyword, $options: 'i' } },
+            { snippet: { $regex: parsed.data.keyword, $options: 'i' } }
+          ]
+        });
       }
-      if (parsed.data?.dateRange === 'last7days' || parsed.data?.dateRange === 'thisweek') {
-        const date = new Date();
-        date.setDate(date.getDate() - 7);
-        query.date = { $gte: date };
+
+      // 4. Date range filter
+      if (parsed.data?.dateDays) {
+        const cutoff = new Date(Date.now() - parsed.data.dateDays * 24 * 60 * 60 * 1000);
+        andClauses.push({ date: { $gte: cutoff } });
+      } else if (parsed.data?.dateRange === 'last7days' || parsed.data?.dateRange === 'thisweek') {
+        const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        andClauses.push({ date: { $gte: cutoff } });
       }
-      result = await Email.find(query).sort({ date: -1 }).limit(20);
+
+      const query = andClauses.length > 0 ? (andClauses.length === 1 ? andClauses[0] : { $and: andClauses }) : {};
+      result = await Email.find(query).sort({ date: -1 }).limit(50);
+
+      // Fallback if DB empty
       if (result.length === 0) {
-        result = [
-          {
-            emailId: 'demo-1',
-            from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
-            subject: 'Quarterly AI Roadmap & Integration Strategy',
-            snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
-            body: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
-            date: new Date(Date.now() - 18 * 60000),
-            isRead: false
-          }
-        ];
+        const totalCount = await Email.countDocuments();
+        if (totalCount === 0) {
+          result = [
+            {
+              emailId: 'demo-1',
+              from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
+              subject: 'Quarterly AI Roadmap & Integration Strategy',
+              snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
+              body: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
+              date: new Date(Date.now() - 18 * 60000),
+              isRead: false
+            }
+          ];
+        }
       }
       message = `Filter applied: found ${result.length} emails`;
     } else if (parsed.action === 'OPEN') {
       const conditions = [];
       if (parsed.data?.emailId) conditions.push({ emailId: parsed.data.emailId });
-      if (parsed.data?.subject) conditions.push({ subject: { $regex: parsed.data.subject, $options: 'i' } });
-      if (parsed.data?.sender) conditions.push({ 'from.email': { $regex: parsed.data.sender, $options: 'i' } });
+      if (parsed.data?.subject) {
+        conditions.push({ subject: { $regex: parsed.data.subject, $options: 'i' } });
+      }
+      if (parsed.data?.sender) {
+        const sender = parsed.data.sender;
+        const senderOpts = [sender];
+        if (sender.length > 4 && /^[a-z][A-Z]/i.test(sender)) {
+          senderOpts.push(sender.slice(1));
+        }
+        senderOpts.forEach(opt => {
+          conditions.push({ 'from.email': { $regex: opt, $options: 'i' } });
+          conditions.push({ 'from.name': { $regex: opt, $options: 'i' } });
+        });
+      }
       
       let email = await Email.findOne(conditions.length > 0 ? { $or: conditions } : {}).sort({ date: -1 });
       
       if (!email) {
-        // Fallback match
+        // Fallback match from sample emails
         const sampleEmails = [
           {
             emailId: 'demo-2',

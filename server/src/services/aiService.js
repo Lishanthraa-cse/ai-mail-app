@@ -50,6 +50,8 @@ const callGemini = async (systemPrompt, userPrompt) => {
   return null;
 };
 
+let openaiQuotaExhausted = false;
+
 const parseCommand = async (command, context = {}) => {
   const systemPrompt = `You are an AI assistant that controls a mail application. 
 Parse the user's natural language command and return a structured action.
@@ -78,23 +80,30 @@ Current context: ${JSON.stringify(context)}`;
     }
   }
 
-  // 2. Try Groq or OpenAI
-  const openai = getOpenAiClient();
-  if (openai) {
-    try {
-      const modelName = process.env.GROQ_API_KEY ? 'llama-3.1-8b-instant' : 'gpt-3.5-turbo';
-      const response = await openai.chat.completions.create({
-        model: modelName,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: command }
-        ],
-        response_format: { type: 'json_object' }
-      });
+  // 2. Try Groq or OpenAI (only if quota not exhausted)
+  if (!openaiQuotaExhausted) {
+    const openai = getOpenAiClient();
+    if (openai) {
+      try {
+        const modelName = process.env.GROQ_API_KEY ? 'llama-3.1-8b-instant' : 'gpt-3.5-turbo';
+        const response = await openai.chat.completions.create({
+          model: modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: command }
+          ],
+          response_format: { type: 'json_object' }
+        });
 
-      return JSON.parse(response.choices[0].message.content);
-    } catch (error) {
-      console.warn('⚠️ AI API call error, falling back to intelligent rule parser:', error.message);
+        return JSON.parse(response.choices[0].message.content);
+      } catch (error) {
+        if (error.message?.includes('429') || error.message?.includes('credits') || error.status === 429) {
+          openaiQuotaExhausted = true;
+          console.warn('⚠️ OpenAI quota exhausted (429). Fast switching to intelligent local NLP rule engine.');
+        } else {
+          console.warn('⚠️ AI API call error, falling back to intelligent rule parser:', error.message);
+        }
+      }
     }
   }
 
@@ -103,31 +112,34 @@ Current context: ${JSON.stringify(context)}`;
 };
 
 const generateReply = async (email, userMessage) => {
-  const openai = getOpenAiClient();
-  if (!openai) {
-    return `Thank you for your email regarding "${email.subject}". ${userMessage ? `\n\n${userMessage}` : '\n\nI will review and follow up shortly.'}\n\nBest regards`;
-  }
+  if (!openaiQuotaExhausted) {
+    const openai = getOpenAiClient();
+    if (openai) {
+      try {
+        const response = await openai.chat.completions.create({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an AI assistant helping to compose email replies. Generate a professional reply based on the original email and user instructions.'
+            },
+            {
+              role: 'user',
+              content: `Original email: ${email.subject}\n${email.body}\n\nUser instructions: ${userMessage}\n\nGenerate a reply.`
+            }
+          ]
+        });
 
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an AI assistant helping to compose email replies. Generate a professional reply based on the original email and user instructions.'
-        },
-        {
-          role: 'user',
-          content: `Original email: ${email.subject}\n${email.body}\n\nUser instructions: ${userMessage}\n\nGenerate a reply.`
+        return response.choices[0].message.content;
+      } catch (error) {
+        if (error.message?.includes('429') || error.message?.includes('credits') || error.status === 429) {
+          openaiQuotaExhausted = true;
         }
-      ]
-    });
-
-    return response.choices[0].message.content;
-  } catch (error) {
-    console.error('❌ Error generating reply:', error);
-    return `Thank you for your email. I will follow up shortly.`;
+      }
+    }
   }
+
+  return `Thank you for your email regarding "${email.subject}". ${userMessage ? `\n\n${userMessage}` : '\n\nI will review and follow up shortly.'}\n\nBest regards`;
 };
 
 const parseCommandRuleBased = (command, context = {}) => {
@@ -139,11 +151,13 @@ const parseCommandRuleBased = (command, context = {}) => {
     };
   }
 
-  const lower = command.toLowerCase().trim();
+  // Normalize and clean quotes/punctuation
+  let cleaned = command.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '').trim();
+  const lower = cleaned.toLowerCase();
 
   // 1. FORWARD ACTION
   if (lower.startsWith('forward') || lower.includes('forward this') || lower.includes('forward email')) {
-    const toMatch = command.match(/(?:to|recipient)\s+([^\s,]+@[^\s,]+)/i);
+    const toMatch = cleaned.match(/(?:to|recipient)\s+([^\s,]+@[^\s,]+)/i);
     return {
       action: 'FORWARD',
       message: toMatch ? `Preparing forward to ${toMatch[1]}` : 'Preparing forward',
@@ -156,9 +170,9 @@ const parseCommandRuleBased = (command, context = {}) => {
 
   // 2. COMPOSE ACTION
   if (lower.startsWith('compose') || lower.startsWith('send') || lower.startsWith('write') || lower.includes('send an email') || lower.includes('write an email')) {
-    const toMatch = command.match(/(?:to|recipient)\s+([^\s,]+@[^\s,]+)/i);
-    const subjMatch = command.match(/subject\s+['"]?([^'"]+?)['"]?(?:\s+(?:body|and|with)|$)/i);
-    const bodyMatch = command.match(/body\s+['"]?([^'"]+?)['"]?$/i);
+    const toMatch = cleaned.match(/(?:to|recipient)\s+([^\s,]+@[^\s,]+|[a-zA-Z0-9_-]+)/i);
+    const subjMatch = cleaned.match(/subject\s+['"]?([^'"]+?)['"]?(?:\s+(?:body|and|with)|$)/i);
+    const bodyMatch = cleaned.match(/body\s+['"]?([^'"]+?)['"]?$/i);
     return {
       action: 'COMPOSE',
       message: toMatch ? `Opening compose for ${toMatch[1]}` : 'Opening compose window',
@@ -174,10 +188,10 @@ const parseCommandRuleBased = (command, context = {}) => {
   const isReply = lower.startsWith('reply') || lower.includes('reply to this') || lower.includes('reply saying') || lower.includes('reply that') || lower.includes('send a reply');
   if (isReply) {
     let userMsg = '';
-    if (/^reply\s*(?:to\s*this(?:\s*email)?)?\s*$/i.test(command.trim())) {
+    if (/^reply\s*(?:to\s*this(?:\s*email)?)?\s*$/i.test(cleaned)) {
       userMsg = '';
     } else {
-      userMsg = command.replace(/^(?:please\s+)?reply\s+(?:to\s+this(?:\s+email)?\s*)?(?:saying|that|with)?\s*/i, '').trim();
+      userMsg = cleaned.replace(/^(?:please\s+)?reply\s+(?:to\s+this(?:\s+email)?\s*)?(?:saying|that|with)?\s*/i, '').trim();
       userMsg = userMsg.replace(/^['"]|['"]$/g, '');
       if (userMsg.toLowerCase() === 'to this' || userMsg.toLowerCase() === 'to this email') {
         userMsg = '';
@@ -194,42 +208,85 @@ const parseCommandRuleBased = (command, context = {}) => {
     };
   }
 
-  // 4. FILTER ACTION
-  if (lower.startsWith('filter') || lower.includes('show unread') || lower.includes('unread emails') || lower.includes('from last week') || lower.includes('last 7 days')) {
-    const isLastWeek = lower.includes('last 7 days') || lower.includes('last week') || lower.includes('this week');
-    const senderMatch = command.match(/from\s+([^\s]+)/i);
+  // Date expression extraction
+  let dateDays = null;
+  const daysMatch = lower.match(/last\s+(\d+)\s+days?/i);
+  const hoursMatch = lower.match(/last\s+(\d+)\s+hours?/i);
+  if (daysMatch) {
+    dateDays = parseInt(daysMatch[1], 10);
+  } else if (hoursMatch) {
+    dateDays = Math.max(1, Math.ceil(parseInt(hoursMatch[1], 10) / 24));
+  } else if (lower.includes('last 24 hours') || lower.includes('today')) {
+    dateDays = 1;
+  } else if (lower.includes('last 48 hours') || lower.includes('yesterday')) {
+    dateDays = 2;
+  } else if (lower.includes('last 7 days') || lower.includes('last week') || lower.includes('past week') || lower.includes('this week')) {
+    dateDays = 7;
+  } else if (lower.includes('last month') || lower.includes('past month') || lower.includes('last 30 days')) {
+    dateDays = 30;
+  }
+
+  // Sender extraction (ignoring words like "the", "last", etc.)
+  let sender = undefined;
+  const fromMatch = cleaned.match(/(?:from|by)\s+([^\s,]+)/i);
+  if (fromMatch) {
+    const rawSender = fromMatch[1].replace(/['",.]/g, '');
+    if (!['the', 'last', 'this', 'past', 'yesterday', 'today', 'me'].includes(rawSender.toLowerCase())) {
+      sender = rawSender;
+    }
+  }
+
+  // Subject / Keyword extraction
+  let keyword = undefined;
+  const aboutMatch = cleaned.match(/(?:about|regarding|titled|on|subject)\s+['"]?([^'"]+?)['"]?$/i);
+  if (aboutMatch) {
+    keyword = aboutMatch[1].trim().replace(/^(?:the|an|a)\s+/i, '');
+  }
+
+  // 4. OPEN ACTION
+  if (lower.startsWith('open') || lower.startsWith('read') || lower.startsWith('view')) {
     return {
-      action: 'FILTER',
-      message: 'Applying inbox filters',
+      action: 'OPEN',
+      message: `Opening email${sender ? ` from ${sender}` : ''}${keyword ? ` about "${keyword}"` : ''}`,
       data: {
-        unread: lower.includes('unread'),
-        sender: senderMatch ? senderMatch[1] : undefined,
-        dateRange: isLastWeek ? 'last7days' : undefined
+        sender,
+        subject: keyword
       }
     };
   }
 
-  // 5. OPEN ACTION
-  if (lower.startsWith('open') || lower.startsWith('read') || lower.startsWith('view') || lower.includes('show email')) {
-    const fromMatch = command.match(/(?:from|by)\s+([^\s]+)/i);
-    const subjMatch = command.match(/(?:about|subject|titled)\s+['"]?([^'"]+?)['"]?$/i);
+  // 5. FILTER ACTION (Date expressions, unread, or filter commands)
+  const isFilter = lower.startsWith('filter') || lower.startsWith('show') || lower.includes('unread') || dateDays !== null;
+  if (isFilter) {
+    const filterDesc = [];
+    if (dateDays) filterDesc.push(`last ${dateDays} day${dateDays === 1 ? '' : 's'}`);
+    if (lower.includes('unread')) filterDesc.push('unread');
+    if (sender) filterDesc.push(`from ${sender}`);
+    if (keyword) filterDesc.push(`about "${keyword}"`);
+
     return {
-      action: 'OPEN',
-      message: 'Opening requested email',
+      action: 'FILTER',
+      message: `Applying inbox filter${filterDesc.length > 0 ? ` (${filterDesc.join(', ')})` : ''}`,
       data: {
-        sender: fromMatch ? fromMatch[1] : undefined,
-        subject: subjMatch ? subjMatch[1] : undefined
+        unread: lower.includes('unread'),
+        sender,
+        dateDays,
+        dateRange: dateDays ? `last${dateDays}days` : undefined,
+        keyword
       }
     };
   }
 
   // 6. DEFAULT: SEARCH ACTION
-  const cleanQuery = command.replace(/^(?:search|find|show|look for)\s+(?:emails?\s+)?(?:for\s+|about\s+)?/i, '').trim();
+  let cleanQuery = cleaned.replace(/^(?:search|find|show|look for)\s+(?:emails?\s+)?(?:for\s+|about\s+)?/i, '').trim();
+  cleanQuery = cleanQuery.replace(/^(?:the|an|a)\s+emails?\s+/i, '').trim();
   return {
     action: 'SEARCH',
-    message: `Searching for "${cleanQuery || command}"`,
+    message: `Searching for "${cleanQuery || cleaned}"`,
     data: {
-      search: cleanQuery || command
+      search: cleanQuery || cleaned,
+      sender,
+      keyword: keyword || (sender ? undefined : cleanQuery)
     }
   };
 };
