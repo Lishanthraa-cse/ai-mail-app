@@ -89,6 +89,21 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 
 ---
 
+### 6. Running Automated Tests
+
+- **Backend Unit Tests**:
+  ```bash
+  cd server
+  npm test
+  ```
+- **Frontend Unit Tests**:
+  ```bash
+  cd client
+  npm test -- --watchAll=false
+  ```
+
+---
+
 ## Tech stack used in project
 
 - **Frontend**: React 18, Tailwind CSS, Heroicons, Socket.IO Client, React Router v6, React Hot Toast
