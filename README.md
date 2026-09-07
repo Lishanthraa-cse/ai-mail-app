@@ -1,10 +1,10 @@
-# ✉️ AI-Powered Mail Web Application
+# AI-Powered Mail Web Application
 
-An intelligent, full-stack email client connected to Google Gmail OAuth 2.0 where an integrated AI Copilot **directly controls and paints the UI programmatically** — composing emails, navigating views, filtering data, and executing contextual actions on behalf of the user through natural language.
+An intelligent, full-stack email client connected to Google Gmail OAuth 2.0 where an integrated AI Assistant **directly controls and paints the UI programmatically** — composing emails, navigating views, filtering data, and executing contextual actions on behalf of the user through natural language.
 
 ---
 
-## 🚀 How to Set It Up and Run It Locally
+## How to Set It Up and Run It Locally
 
 ### 1. Prerequisites
 Ensure you have the following installed on your development machine:
@@ -89,65 +89,16 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 
 ---
 
-### 6. Running Automated Tests
+## Tech stack used in project
 
-The application comes with comprehensive unit test suites covering AI intent parsing, RFC email parsing, thread grouping, search/filter algorithms, and reactive UI state:
-
-- **Backend Unit Tests (18 Tests)**:
-  ```bash
-  cd server
-  npm test
-  ```
-- **Frontend Unit Tests (7 Tests)**:
-  ```bash
-  cd client
-  $env:CI="true"; npm test -- --watchAll=false
-  ```
+- **Frontend**: React 18, Tailwind CSS, Heroicons, Socket.IO Client, React Router v6, React Hot Toast
+- **Backend**: Node.js, Express, Socket.IO, Google APIs (OAuth 2.0 & Gmail v1 REST API), Passport.js, Mongoose, JSON Web Tokens (JWT)
+- **Database**: MongoDB Atlas
+- **Real-Time Synchronization**: Socket.IO bi-directional WebSocket gateway & background sync worker
 
 ---
 
-## 🏗️ Architecture Decisions and Trade-offs Made
-
-### System Architecture Diagram
-
-```mermaid
-graph TD
-    subgraph Frontend ["Frontend Client (React 18 + Tailwind CSS :3000)"]
-        UI["Main Views (Inbox / Sent / EmailDetail)"]
-        AP["AI Copilot Side Panel"]
-        CTX["EmailContext (State & Active Email Sync)"]
-        WS_C["Socket.IO Client Layer"]
-    end
-
-    subgraph Backend ["Backend Server (Node.js + Express :5000)"]
-        Router["Express API Router"]
-        AIService["Multi-Tier AI Parser & Fallback Engine"]
-        GmailClient["Google Gmail API Client"]
-        Poller["Background Real-Time Sync Worker (15s)"]
-        WS_S["Socket.IO Gateway"]
-    end
-
-    subgraph External ["Cloud Infrastructure & External APIs"]
-        Gmail["Google Gmail OAuth 2.0 & REST API"]
-        Mongo[("MongoDB Atlas (Cache & Message Store)")]
-        Gemini["Google Gemini 1.5 Flash / Groq / OpenAI"]
-    end
-
-    UI --> CTX
-    AP -->|Natural Language Intent| Router
-    CTX -->|REST Queries / Force Sync| Router
-    WS_C <-->|Bi-directional Events ('new-email', 'emails-synced')| WS_S
-    Poller -->|Periodically Detects Unsynced Messages| GmailClient
-    Poller -->|Saves & Broadcasts| Mongo
-    Poller -->|Emits 'new-email'| WS_S
-    Router --> AIService
-    Router --> GmailClient
-    Router --> Mongo
-    AIService -->|Zero-Credit Fallback / Free Tier| Gemini
-    GmailClient --> Gmail
-```
-
-### Key Architectural Decisions & Pragmatic Trade-offs
+## Architecture Decisions and Trade-offs Made
 
 1. **Cache-First Strategy with MongoDB & In-Memory Buffering**:
    - *Problem*: Calling the Gmail API (`users.messages.list` + individual `users.messages.get`) on every page view or component mount triggers Google's strict 429 quota limits and introduces 3–4 second network latency.
@@ -171,7 +122,7 @@ graph TD
 
 4. **Programmatic UI Control Paradigm**:
    - *Problem*: Most "AI assistants" merely output conversational text into a chat box, forcing the user to manually copy and paste details or navigate the app themselves.
-   - *Decision*: The AI Copilot directly manipulates the application's React state and DOM:
+   - *Decision*: The AI Assistant directly manipulates the application's React state and DOM:
      - Natural language commands like *"Compose to alex@techcorp.io with subject 'Meeting'"* visibly pop open the Compose modal and populate the `To`, `Subject`, and `Body` fields.
      - Filter queries like *"Show unread emails from last week"* mutate the inbox filter state and repaint the main message table.
      - Navigation commands like *"Open email from Sarah"* trigger declarative router navigation to `/email/:id`.
@@ -182,23 +133,23 @@ graph TD
 
 ---
 
-## 📸 Screenshots & Video Demo: Assistant Controlling the UI
+## Screenshots & Video Demo: Assistant Controlling the UI
 
 ### Dashboard Overview & Glassmorphic Interface
-The main dashboard features frosted glassmorphism, gradient identity avatars, unread badges, and an integrated AI Copilot panel:
+The main dashboard features frosted glassmorphism, gradient identity avatars, unread badges, and an integrated AI Assistant panel:
 
 ![Dashboard Overview](docs/screenshots/dashboard-overview.png)
 
 ### AI Assistant Driving the UI Programmatically
 The assistant executes actions directly on the user's behalf — populating form fields, filtering messages, and rendering interactive action cards:
 
-![AI Copilot Controlling UI](docs/screenshots/ai-copilot-controls-ui.png)
+![AI Assistant Controlling UI](docs/screenshots/ai-copilot-controls-ui.png)
 
 ### Walkthrough of Core AI Workflows
 
 | Step | User Command | AI Action & UI Response |
 | :---: | :--- | :--- |
-| **1** | *"Send an email to alex@techcorp.io with subject 'Q4 Roadmap Sync' and body 'Let's connect at 3 PM today'"* | **Paints & Fills Compose Form**: Visibly launches the Compose modal with recipient, subject, and body pre-filled, presenting an interactive `[ 🚀 Send Now ]` confirmation card. |
+| **1** | *"Send an email to alex@techcorp.io with subject 'Q4 Roadmap Sync' and body 'Let's connect at 3 PM today'"* | **Paints & Fills Compose Form**: Visibly launches the Compose modal with recipient, subject, and body pre-filled, presenting an interactive `[ Send Now ]` confirmation card. |
 | **2** | *"Show unread emails from last week"* | **Filters Main Inbox UI**: Automatically toggles the unread filter and date range, instantly filtering the conversation list in the main viewport. |
 | **3** | *"Open the latest email from Sarah"* | **Navigates Views**: Programmatically transitions the route to `/email/:id` and renders the full email conversation and thread timeline. |
 | **4** | *"Reply to this"* *(while reading an email)* | **Context-Aware Reply Pre-fill**: Inspects `activeEmail` from the current view, populates recipient (`sarah.c@designsystems.dev`), sets subject (`Re: Design Review`), drafts a tailored response, and opens the editor. |
@@ -206,7 +157,7 @@ The assistant executes actions directly on the user's behalf — populating form
 
 ---
 
-## 💡 What You’d Improve With More Time
+## What You’d Improve With More Time
 
 1. **Google Cloud Pub/Sub Webhook Integration**:
    Configure production Google Cloud Pub/Sub push endpoints with Gmail watch topic subscriptions for instant, sub-second inbox webhook delivery without polling.
@@ -221,4 +172,4 @@ The assistant executes actions directly on the user's behalf — populating form
    Upgrade the plain-text compose modal to a rich text editor (e.g. TipTap or Lexical) with markdown shortcuts, inline image embedding, and drag-and-drop file attachments via Gmail MIME multipart APIs.
 
 5. **Voice-Driven Dictation & Commands**:
-   Incorporate the Web Speech Recognition API so users can dictate emails and issue hands-free voice commands directly to the AI Copilot.
+   Incorporate the Web Speech Recognition API so users can dictate emails and issue hands-free voice commands directly to the AI Assistant.

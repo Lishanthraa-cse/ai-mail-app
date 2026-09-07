@@ -24,7 +24,7 @@ const isAuthenticated = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('❌ Authentication error:', error);
+    console.error('Authentication error:', error);
     res.status(401).json({ error: 'Invalid authentication' });
   }
 };

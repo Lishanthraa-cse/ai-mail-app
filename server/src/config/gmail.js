@@ -31,17 +31,15 @@ passport.use(new GoogleStrategy({
           picture: profile.photos[0]?.value
         });
         await user.save();
-        console.log('👤 New user created:', user.email);
       } else {
         user.accessToken = accessToken;
         user.refreshToken = refreshToken;
         await user.save();
-        console.log('👤 User logged in:', user.email);
       }
       
       return done(null, user);
     } catch (error) {
-      console.error('❌ Google strategy error:', error);
+      console.error('Google strategy error:', error);
       return done(error, null);
     }
   }

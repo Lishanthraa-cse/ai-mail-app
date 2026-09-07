@@ -49,12 +49,12 @@ const Sidebar = ({ onCompose, onLogout }) => {
           </div>
           <div>
             <h1 className="text-base font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 dark:from-white dark:via-indigo-200 dark:to-slate-200 bg-clip-text text-transparent">
-              AI Mail
+              AI Mail Web Application
             </h1>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                Copilot v2.0
+                AI Assistant
               </span>
             </div>
           </div>

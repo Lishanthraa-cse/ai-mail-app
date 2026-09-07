@@ -78,10 +78,10 @@ const Header = ({ toggleTheme, isDarkMode, onToggleAssistant, showAssistant }) =
 
       {/* Right Controls */}
       <div className="flex items-center gap-2.5">
-        {/* Toggle AI Copilot Panel */}
+        {/* Toggle AI Assistant Panel */}
         <button
           onClick={onToggleAssistant}
-          title={showAssistant ? 'Hide AI Copilot' : 'Show AI Copilot'}
+          title={showAssistant ? 'Hide AI Assistant' : 'Show AI Assistant'}
           className={`flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 shadow-sm ${
             showAssistant
               ? 'bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-400/40 dark:border-indigo-500/40 shadow-indigo-500/10'
@@ -92,7 +92,7 @@ const Header = ({ toggleTheme, isDarkMode, onToggleAssistant, showAssistant }) =
             <SparklesIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-indigo-500" />
             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
           </div>
-          <span className="hidden sm:inline">Copilot</span>
+          <span className="hidden sm:inline">Assistant</span>
         </button>
 
         {/* Dark/Light Theme Toggle */}

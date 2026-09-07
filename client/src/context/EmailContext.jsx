@@ -53,12 +53,11 @@ export const EmailProvider = ({ children }) => {
         data = await fetchInbox();
       }
       setEmails(data);
-      console.log(`📥 Loaded ${data.length} emails from ${type}`);
     } catch (err) {
       if (showLoading) {
         setError(err.message || 'Failed to load emails');
       }
-      console.error('❌ Error loading emails:', err);
+      console.error('Error loading emails:', err);
     } finally {
       if (showLoading) {
         setLoading(false);
@@ -71,10 +70,9 @@ export const EmailProvider = ({ children }) => {
     try {
       const results = await searchEmails(filters);
       setEmails(results);
-      console.log(`🔍 Search found ${results.length} emails`);
     } catch (err) {
       setError(err.message || 'Search failed');
-      console.error('❌ Search error:', err);
+      console.error('Search error:', err);
     } finally {
       setLoading(false);
     }
@@ -98,13 +96,11 @@ export const EmailProvider = ({ children }) => {
             return [newEmail, ...prev];
           });
         }
-        console.log('📨 New email received in real-time:', newEmail.subject);
       });
       
       socket.on('emails-synced', ({ count } = {}) => {
         // Silently reload current view in background
         loadEmails(currentTypeRef.current, false);
-        console.log(`🔄 Real-time auto-sync completed`);
       });
     }
 

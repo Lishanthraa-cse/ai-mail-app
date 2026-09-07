@@ -76,7 +76,7 @@ export const SAMPLE_EMAILS = [
     from: { name: 'Stripe Billing', email: 'invoices@stripe.com' },
     subject: 'Invoice #INV-2026-0906 for Workspace Pro',
     snippet: 'Your invoice for the period Sep 1 – Sep 30 is ready. The amount of $49.00 has been charged to your default payment card.',
-    body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Copilot Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
+    body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Assistant Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
     date: new Date(Date.now() - 22 * 3600000).toISOString(),
     isRead: true,
     labels: ['INBOX', 'FINANCE']
@@ -154,7 +154,7 @@ export const processAICommand = async (command, context = {}) => {
     });
     return response.data;
   } catch (error) {
-    console.error('❌ AI command error:', error);
+    console.error('AI command error:', error);
     throw error;
   }
 };

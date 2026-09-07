@@ -107,7 +107,6 @@ function App() {
       localStorage.setItem('token', token);
       setIsAuthenticated(true);
       window.history.replaceState({}, document.title, '/');
-      console.log('🔐 Authenticated successfully');
     }
 
     const savedToken = localStorage.getItem('token');

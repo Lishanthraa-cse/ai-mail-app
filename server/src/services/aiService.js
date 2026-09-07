@@ -45,7 +45,7 @@ const callGemini = async (systemPrompt, userPrompt) => {
       return JSON.parse(text);
     }
   } catch (err) {
-    console.warn(`⚠️ Gemini API call returned: ${err.message}`);
+    // gemini error fallback
   }
   return null;
 };
@@ -99,9 +99,6 @@ Current context: ${JSON.stringify(context)}`;
       } catch (error) {
         if (error.message?.includes('429') || error.message?.includes('credits') || error.status === 429) {
           openaiQuotaExhausted = true;
-          console.warn('⚠️ OpenAI quota exhausted (429). Fast switching to intelligent local NLP rule engine.');
-        } else {
-          console.warn('⚠️ AI API call error, falling back to intelligent rule parser:', error.message);
         }
       }
     }

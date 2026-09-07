@@ -23,10 +23,9 @@ router.get('/google/callback',
         { expiresIn: '7d' }
       );
       
-      console.log('✅ Authentication successful for:', req.user.email);
       res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
     } catch (error) {
-      console.error('❌ Auth callback error:', error);
+      console.error('Auth callback error:', error);
       res.redirect('http://localhost:3000/login?error=auth_failed');
     }
   }

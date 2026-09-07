@@ -10,16 +10,8 @@ export const initializeSocket = () => {
       }
     });
 
-    socket.on('connect', () => {
-      console.log('🔌 Socket connected');
-    });
-
     socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
+      console.error('Socket connection error:', error);
     });
   }
   return socket;

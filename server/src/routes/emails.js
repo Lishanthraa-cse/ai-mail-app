@@ -15,7 +15,7 @@ router.get('/inbox', isAuthenticated, async (req, res) => {
     const emails = await fetchEmails(req.user.id, query);
     res.json(emails);
   } catch (error) {
-    console.error('❌ Error fetching inbox:', error);
+    console.error('Error fetching inbox:', error);
     res.status(500).json({ error: 'Failed to fetch emails' });
   }
 });
@@ -26,7 +26,7 @@ router.get('/sent', isAuthenticated, async (req, res) => {
     const emails = await fetchEmails(req.user.id, 'in:sent');
     res.json(emails);
   } catch (error) {
-    console.error('❌ Error fetching sent emails:', error);
+    console.error('Error fetching sent emails:', error);
     res.status(500).json({ error: 'Failed to fetch sent emails' });
   }
 });
@@ -40,7 +40,7 @@ router.get('/:id', isAuthenticated, async (req, res) => {
     }
     res.json(email);
   } catch (error) {
-    console.error('❌ Error fetching email:', error);
+    console.error('Error fetching email:', error);
     res.status(500).json({ error: 'Failed to fetch email' });
   }
 });
@@ -52,7 +52,7 @@ router.post('/send', isAuthenticated, async (req, res) => {
     const result = await sendEmail(req.user.id, { to, subject, body, cc, bcc });
     res.json({ success: true, data: result });
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('Error sending email:', error);
     res.status(500).json({ error: 'Failed to send email' });
   }
 });
@@ -73,7 +73,7 @@ router.get('/search', isAuthenticated, async (req, res) => {
     const emails = await fetchEmails(req.user.id, query.trim() || 'in:inbox');
     res.json(emails);
   } catch (error) {
-    console.error('❌ Error searching emails:', error);
+    console.error('Error searching emails:', error);
     res.status(500).json({ error: 'Failed to search emails' });
   }
 });
@@ -84,7 +84,7 @@ router.post('/sync', isAuthenticated, async (req, res) => {
     const emails = await syncEmails(req.user.id);
     res.json({ message: 'Emails synced successfully', count: emails.length });
   } catch (error) {
-    console.error('❌ Error syncing emails:', error);
+    console.error('Error syncing emails:', error);
     res.status(500).json({ error: 'Failed to sync emails' });
   }
 });

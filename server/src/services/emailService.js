@@ -24,7 +24,7 @@ const fetchEmails = async (userId, query = 'in:inbox') => {
 
     return emails;
   } catch (error) {
-    console.error('❌ Error fetching emails:', error);
+    console.error('Error fetching emails:', error);
     throw error;
   }
 };
@@ -56,7 +56,7 @@ const getEmailById = async (userId, gmailId) => {
     
     return email;
   } catch (error) {
-    console.error('❌ Error fetching email by ID:', error);
+    console.error('Error fetching email by ID:', error);
     throw error;
   }
 };
@@ -141,10 +141,9 @@ const sendEmail = async (userId, { to, subject, body, cc = [], bcc = [] }) => {
       }
     });
 
-    console.log('📤 Email sent successfully');
     return response.data;
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('Error sending email:', error);
     throw error;
   }
 };
@@ -170,7 +169,7 @@ const syncEmails = async (userId) => {
 
     return emails;
   } catch (error) {
-    console.error('❌ Error syncing emails:', error);
+    console.error('Error syncing emails:', error);
     throw error;
   }
 };

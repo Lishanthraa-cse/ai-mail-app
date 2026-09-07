@@ -14,9 +14,8 @@ const { parseCommandRuleBased, parseCommand } = require('./services/aiService');
 // Configure custom DNS servers to bypass querySrv ECONNREFUSED on Windows/certain ISPs
 try {
   dns.setServers(['8.8.8.8', '1.1.1.1']);
-  console.log('🌐 Configured Google & Cloudflare DNS (8.8.8.8, 1.1.1.1)');
 } catch (e) {
-  console.warn('⚠️ Could not set custom DNS servers:', e.message);
+  // ignore
 }
 
 const app = express();
@@ -47,10 +46,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ========================================
-// MONGODB CONNECTION WITH FALLBACKS
+// MONGODB CONNECTION
 // ========================================
-
-console.log('📦 Connecting to MongoDB...');
 
 const connectionUris = [
   { name: 'MongoDB Atlas (SRV)', uri: process.env.MONGODB_URI },
@@ -61,52 +58,26 @@ const connectionUris = [
 async function connectWithRetry() {
   for (const conn of connectionUris) {
     try {
-      console.log(`📦 Attempting connection to ${conn.name}...`);
       await mongoose.connect(conn.uri, {
         serverSelectionTimeoutMS: 10000,
         socketTimeoutMS: 45000,
       });
-      console.log(`✅ Connected to MongoDB successfully via ${conn.name}!`);
-      console.log(`📊 Database: ${mongoose.connection.db?.databaseName}`);
-      console.log(`🔄 Connection State: ${mongoose.connection.readyState}`);
+      console.log('Connected to MongoDB');
       return;
     } catch (err) {
-      console.warn(`⚠️ Failed to connect via ${conn.name}: ${err.message}`);
+      // try next connection strategy
     }
   }
 
-  console.error('❌ All MongoDB connection strategies failed.');
-  console.log('💡 Troubleshooting:');
-  console.log('   1. Check internet connectivity and DNS access to 8.8.8.8');
-  console.log('   2. Verify IP whitelist in MongoDB Atlas includes 0.0.0.0/0');
-  console.log('   3. If using local MongoDB, ensure mongod is running');
+  console.error('Failed to connect to MongoDB');
 }
 
 // Start connection
 connectWithRetry();
 
-// Initialize after connection
-function initializeAfterConnection() {
-  console.log('🟢 MongoDB connection ready!');
-}
-
-// Handle connection events
-mongoose.connection.on('connected', () => {
-  console.log('🟢 Mongoose connected to MongoDB');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('🔴 Mongoose connection error:', err.message);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('🟡 Mongoose disconnected');
-});
-
 // Graceful shutdown
 process.on('SIGINT', () => {
   mongoose.connection.close(() => {
-    console.log('🔴 MongoDB connection closed');
     process.exit(0);
   });
 });
@@ -171,18 +142,16 @@ async (accessToken, refreshToken, profile, done) => {
         refreshToken,
       });
       await user.save();
-      console.log('👤 New user created:', user.email);
     } else {
       user.accessToken = accessToken;
       if (refreshToken) {
         user.refreshToken = refreshToken;
       }
       await user.save();
-      console.log('👤 User logged in:', user.email);
     }
     return done(null, user);
   } catch (error) {
-    console.error('❌ Google strategy error:', error);
+    console.error('Google strategy error:', error);
     return done(error, null);
   }
 }));
@@ -222,7 +191,6 @@ const getGmailClient = async (user) => {
       if (tokens.access_token) user.accessToken = tokens.access_token;
       if (tokens.refresh_token) user.refreshToken = tokens.refresh_token;
       await user.save();
-      console.log('🔄 Google access token refreshed automatically');
     } catch (e) {
       console.warn('Could not save refreshed token:', e.message);
     }
@@ -251,46 +219,7 @@ function parseEmailAddresses(str) {
 
 // Root landing page
 app.get('/', (req, res) => {
-  const isMongoConnected = mongoose.connection.readyState === 1;
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>AI Mail Server - Status</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0b1120; color: #f1f5f9; margin: 0; padding: 40px 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
-    .card { max-width: 580px; width: 100%; background: #1e293b; border-radius: 20px; padding: 36px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid #334155; }
-    h1 { margin-top: 0; font-size: 26px; color: #38bdf8; display: flex; align-items: center; gap: 10px; }
-    .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; }
-    .badge-ok { background: #065f46; color: #6ee7b7; }
-    .badge-err { background: #7f1d1d; color: #fca5a5; }
-    ul { list-style: none; padding: 0; margin: 16px 0; }
-    li { margin: 12px 0; font-size: 15px; }
-    a { color: #60a5fa; text-decoration: none; font-weight: 500; }
-    a:hover { text-decoration: underline; }
-    .btn { display: inline-block; margin-top: 16px; background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; padding: 10px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; }
-    .btn:hover { opacity: 0.95; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>✉️ AI Mail Server</h1>
-    <p>Server Status: <span class="badge badge-ok">Online (Port 5000)</span></p>
-    <p>MongoDB Atlas: <span class="badge ${isMongoConnected ? 'badge-ok' : 'badge-err'}">${isMongoConnected ? '✅ Connected (' + (mongoose.connection.db?.databaseName || 'ai-mail-app') + ')' : '❌ Disconnected'}</span></p>
-    <hr style="border: 0; border-top: 1px solid #334155; margin: 24px 0;">
-    <h3 style="margin-bottom: 8px;">Available Endpoints:</h3>
-    <ul>
-      <li>🌐 <a href="http://localhost:3000">Open React Frontend App (localhost:3000)</a></li>
-      <li>🔑 <a href="/api/auth/google">Google OAuth Login (/api/auth/google)</a></li>
-      <li>💚 <a href="/api/health">Health Check API (/api/health)</a></li>
-      <li>🧪 <a href="/api/test">API Test (/api/test)</a></li>
-      <li>🔍 <span style="font-family: monospace; color: #94a3b8;">GET /api/emails/search</span></li>
-      <li>🤖 <span style="font-family: monospace; color: #94a3b8;">POST /api/ai/command</span></li>
-    </ul>
-    <a href="http://localhost:3000" class="btn">Launch Web App →</a>
-  </div>
-</body>
-</html>`);
+  res.json({ message: 'AI Mail API Server' });
 });
 
 // Health check
@@ -299,14 +228,6 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString()
-  });
-});
-
-// Test route
-app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Server is running!',
-    mongodb: mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected'
   });
 });
 
@@ -326,7 +247,6 @@ app.get('/api/auth/google/callback', passport.authenticate('google', {
     process.env.JWT_SECRET || 'secret',
     { expiresIn: '7d' }
   );
-  console.log('✅ Authentication successful, redirecting to client');
   res.redirect(`http://localhost:3000/auth/callback?token=${token}`);
 });
 
@@ -405,7 +325,6 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
     const now = Date.now();
     // 1. Quota cooldown guard
     if (now < quotaCooldownUntil) {
-      console.log('⏳ Serving inbox from database cache during Gmail quota cooldown');
       const cached = await Email.find().sort({ date: -1 }).limit(50);
       return res.json(cached);
     }
@@ -481,7 +400,7 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
 
           emails.push(emailData);
         } catch (msgErr) {
-          console.warn(`Could not fetch message ${message.id}:`, msgErr.message);
+          // ignore single message fetch error
         }
       }
     }
@@ -489,9 +408,9 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
     cachedInboxData = { timestamp: Date.now(), emails };
     res.json(emails);
   } catch (error) {
-    console.error('❌ Error fetching inbox:', error.message);
+    console.error('Error fetching inbox:', error.message);
     if (error.message?.includes('Quota') || error.message?.includes('limit') || error.code === 429) {
-      console.warn('⚠️ Gmail API quota reached. Setting 2-minute cooldown.');
+      console.warn('Gmail API quota reached. Setting 2-minute cooldown.');
       quotaCooldownUntil = Date.now() + 120000;
     }
     try {
@@ -580,7 +499,7 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
 
           emails.push(emailData);
         } catch (msgErr) {
-          console.warn(`Could not fetch sent message ${message.id}:`, msgErr.message);
+          // ignore single message fetch error
         }
       }
     }
@@ -588,7 +507,7 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
     cachedSentData = { timestamp: Date.now(), emails };
     res.json(emails);
   } catch (error) {
-    console.error('❌ Error fetching sent emails:', error.message);
+    console.error('Error fetching sent emails:', error.message);
     if (error.message?.includes('Quota') || error.message?.includes('limit') || error.code === 429) {
       quotaCooldownUntil = Date.now() + 120000;
     }
@@ -630,7 +549,7 @@ const handleEmailSearch = async (req, res) => {
     const emails = await Email.find(query).sort({ date: -1 }).limit(50);
     res.json(emails);
   } catch (error) {
-    console.error('❌ Error searching emails:', error);
+    console.error('Error searching emails:', error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -673,7 +592,7 @@ app.get('/api/emails/thread/:threadId', async (req, res) => {
     
     res.json(threadEmails || []);
   } catch (error) {
-    console.error('❌ Error fetching thread:', error);
+    console.error('Error fetching thread:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -712,7 +631,7 @@ app.get('/api/emails/:id', async (req, res) => {
           from: { name: 'Stripe Billing', email: 'invoices@stripe.com' },
           subject: 'Invoice #INV-2026-0906 for Workspace Pro',
           snippet: 'Your invoice for the period Sep 1 – Sep 30 is ready.',
-          body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Copilot Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
+          body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Assistant Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
           date: new Date(Date.now() - 22 * 3600000),
           isRead: true,
           labels: ['INBOX', 'FINANCE']
@@ -736,7 +655,7 @@ app.get('/api/emails/:id', async (req, res) => {
 
     res.json(email);
   } catch (error) {
-    console.error('❌ Error fetching email:', error);
+    console.error('Error fetching email:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -769,14 +688,13 @@ app.post('/api/emails/send', authenticateToken, async (req, res) => {
     });
 
     cachedSentData.emails = [];
-    console.log('📤 Email sent successfully');
     res.json({
       success: true,
       messageId: response.data.id,
       threadId: response.data.threadId
     });
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('Error sending email:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -795,7 +713,6 @@ const handleAiCommand = async (req, res) => {
     try {
       parsed = await parseCommand(command, context);
     } catch (apiErr) {
-      console.warn(`⚠️ AI parse error: ${apiErr.message}. Using intelligent command parser fallback.`);
       parsed = parseCommandRuleBased(command, context);
     }
 
@@ -1099,7 +1016,7 @@ const handleAiCommand = async (req, res) => {
       result
     });
   } catch (error) {
-    console.error('❌ AI Error:', error);
+    console.error('AI Error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to process AI command',
@@ -1132,7 +1049,6 @@ app.post('/api/emails/simulate-incoming', async (req, res) => {
 
     // Broadcast over Socket.IO to all clients immediately!
     io.emit('new-email', newEmail);
-    console.log('📨 Broadcasted new incoming email over Socket.IO');
 
     res.json({ success: true, message: 'Real-time email broadcasted', email: newEmail });
   } catch (err) {
@@ -1233,7 +1149,6 @@ const startBackgroundSync = () => {
         cachedInboxData.emails = [];
         io.emit('new-email', newEmailData);
         io.emit('emails-synced', { count: 1, timestamp: new Date().toISOString() });
-        console.log(`📨 [Auto-Sync] Detected new incoming email: "${newEmailData.subject}" from ${newEmailData.from?.email}`);
       }
     } catch (err) {
       if (err.message?.includes('Quota') || err.message?.includes('limit') || err.code === 429) {
@@ -1254,10 +1169,8 @@ startBackgroundSync();
 // ========================================
 
 io.on('connection', (socket) => {
-  console.log('🔌 Client connected:', socket.id);
-
   socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
+    // disconnected
   });
 });
 
@@ -1267,10 +1180,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📧 Gmail OAuth URL: http://localhost:${PORT}/api/auth/google`);
-  console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
-  console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = { io };
