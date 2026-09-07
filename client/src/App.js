@@ -20,7 +20,7 @@ function AppContent({
   selectedEmail, 
   setSelectedEmail 
 }) {
-  const { showCompose, composeData, openCompose, closeCompose } = useEmailContext();
+  const { showCompose, composeData, openCompose, closeCompose, activeEmail } = useEmailContext();
 
   // Keyboard shortcut: C to compose (+3 bonus)
   useEffect(() => {
@@ -83,8 +83,8 @@ function AppContent({
       {showCompose && (
         <EmailCompose 
           onClose={closeCompose}
-          initialTo={composeData.to || (selectedEmail?.from?.email || '')}
-          initialSubject={composeData.subject || (selectedEmail ? `Re: ${selectedEmail.subject}` : '')}
+          initialTo={composeData.to || (activeEmail?.from?.email || selectedEmail?.from?.email || '')}
+          initialSubject={composeData.subject || (activeEmail ? (activeEmail.subject?.startsWith('Re:') ? activeEmail.subject : `Re: ${activeEmail.subject}`) : (selectedEmail ? `Re: ${selectedEmail.subject}` : ''))}
           initialBody={composeData.body || ''}
         />
       )}

@@ -55,7 +55,7 @@ const SimpleMarkdown = ({ content }) => {
 const AssistantPanel = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { emails, setEmails, openCompose, closeCompose } = useEmailContext();
+  const { emails, setEmails, openCompose, closeCompose, activeEmail } = useEmailContext();
 
   const [messages, setMessages] = useState([
     {
@@ -92,18 +92,22 @@ Try one of the chips below or type any command! ✨`
   const getCurrentContext = () => {
     const isEmailDetail = location.pathname.startsWith('/email/');
     let currentEmailId = null;
-    let currentEmail = null;
+    let currentEmail = activeEmail;
 
     if (isEmailDetail) {
       currentEmailId = location.pathname.split('/email/')[1];
-      currentEmail = emails.find(e => (e.emailId || e._id || e.gmailId) === currentEmailId);
+      if (!currentEmail) {
+        currentEmail = emails.find(e => (e.emailId || e._id || e.gmailId) === currentEmailId);
+      }
     }
 
     return {
       currentView: isEmailDetail ? 'email_detail' : (location.pathname === '/sent' ? 'sent' : 'inbox'),
-      currentEmailId,
+      currentEmailId: currentEmail?.emailId || currentEmail?._id || currentEmailId,
       currentEmailSubject: currentEmail?.subject || null,
       currentEmailSender: currentEmail?.from?.email || null,
+      currentEmailSenderName: currentEmail?.from?.name || null,
+      currentEmailBody: currentEmail?.body || currentEmail?.snippet || null,
     };
   };
 
@@ -147,9 +151,15 @@ Try one of the chips below or type any command! ✨`
 
       // 2. REPLY ACTION: Context aware reply to current or matched email
       else if (response.action === 'REPLY') {
-        let to = response.result?.reply?.to || activeContext.currentEmailSender || '';
-        let subject = response.result?.reply?.subject || (activeContext.currentEmailSubject ? `Re: ${activeContext.currentEmailSubject}` : 'Re: Email');
-        let body = response.result?.reply?.body || response.data?.message || 'Thank you for your email. I will follow up shortly.';
+        const target = activeEmail || emails.find(e => (e.emailId || e._id) === activeContext.currentEmailId);
+        let to = response.result?.reply?.to || response.data?.to || target?.from?.email || activeContext.currentEmailSender || '';
+        let subject = response.result?.reply?.subject || response.data?.subject || (target?.subject ? (target.subject.startsWith('Re:') ? target.subject : `Re: ${target.subject}`) : (activeContext.currentEmailSubject ? `Re: ${activeContext.currentEmailSubject}` : 'Re: Email'));
+        let body = response.result?.reply?.body || response.data?.message || response.data?.body;
+
+        if (!body || body.trim() === 'to this' || body.trim() === '') {
+          const senderName = target?.from?.name || target?.from?.email?.split('@')[0] || 'there';
+          body = `Hi ${senderName},\n\nThank you for reaching out regarding "${target?.subject || 'this matter'}".\n\nI have received your email and will review the details to follow up shortly.\n\nBest regards`;
+        }
 
         // Visibly open compose with reply
         openCompose({ to, subject, body });

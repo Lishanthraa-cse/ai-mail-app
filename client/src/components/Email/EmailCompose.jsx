@@ -3,14 +3,21 @@ import { XMarkIcon, SparklesIcon, PaperAirplaneIcon } from '@heroicons/react/24/
 import { sendEmail, processAICommand } from '../../services/api';
 import toast from 'react-hot-toast';
 
-const EmailCompose = ({ onClose, initialTo = '', initialSubject = '' }) => {
+const EmailCompose = ({ onClose, initialTo = '', initialSubject = '', initialBody = '' }) => {
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(initialSubject);
-  const [body, setBody] = useState('');
+  const [body, setBody] = useState(initialBody);
   const [sending, setSending] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
+
+  // Synchronize state if props change dynamically
+  useEffect(() => {
+    if (initialTo !== undefined) setTo(initialTo);
+    if (initialSubject !== undefined) setSubject(initialSubject);
+    if (initialBody !== undefined) setBody(initialBody);
+  }, [initialTo, initialSubject, initialBody]);
 
   // Close compose on Escape key
   useEffect(() => {

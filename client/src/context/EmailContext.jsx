@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { fetchInbox, fetchSent, searchEmails } from '../services/api';
 import { getSocket, initializeSocket } from '../services/socket';
 
@@ -8,6 +8,9 @@ export const useEmailContext = () => useContext(EmailContext);
 
 export const EmailProvider = ({ children }) => {
   const [emails, setEmails] = useState([]);
+  const [activeEmail, setActiveEmail] = useState(null);
+  const [currentType, setCurrentType] = useState('inbox');
+  const currentTypeRef = useRef('inbox');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
@@ -35,9 +38,13 @@ export const EmailProvider = ({ children }) => {
     setComposeData({ to: '', subject: '', body: '' });
   };
 
-  const loadEmails = async (type = 'inbox') => {
-    setLoading(true);
-    setError(null);
+  const loadEmails = async (type = 'inbox', showLoading = true) => {
+    currentTypeRef.current = type;
+    setCurrentType(type);
+    if (showLoading) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       let data;
       if (type === 'sent') {
@@ -48,10 +55,14 @@ export const EmailProvider = ({ children }) => {
       setEmails(data);
       console.log(`📥 Loaded ${data.length} emails from ${type}`);
     } catch (err) {
-      setError(err.message || 'Failed to load emails');
+      if (showLoading) {
+        setError(err.message || 'Failed to load emails');
+      }
       console.error('❌ Error loading emails:', err);
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -77,17 +88,36 @@ export const EmailProvider = ({ children }) => {
     // Listen for real-time email updates
     if (socket) {
       socket.on('new-email', (newEmail) => {
-        setEmails(prev => [newEmail, ...prev]);
-        console.log('📨 New email received real-time');
+        if (currentTypeRef.current === 'inbox') {
+          setEmails(prev => {
+            const exists = prev.some(e => 
+              (e.emailId && newEmail.emailId && e.emailId === newEmail.emailId) || 
+              (e._id && newEmail._id && e._id === newEmail._id)
+            );
+            if (exists) return prev;
+            return [newEmail, ...prev];
+          });
+        }
+        console.log('📨 New email received in real-time:', newEmail.subject);
       });
       
-      socket.on('emails-synced', ({ count }) => {
-        loadEmails();
-        console.log(`🔄 Synced ${count} emails`);
+      socket.on('emails-synced', ({ count } = {}) => {
+        // Silently reload current view in background
+        loadEmails(currentTypeRef.current, false);
+        console.log(`🔄 Real-time auto-sync completed`);
       });
     }
+
+    // Safety fallback: silent background poll every 25 seconds
+    const pollInterval = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        loadEmails(currentTypeRef.current, false);
+      }
+    }, 25000);
     
     return () => {
+      clearInterval(pollInterval);
       const socket = getSocket();
       if (socket) {
         socket.off('new-email');
@@ -98,6 +128,9 @@ export const EmailProvider = ({ children }) => {
 
   const value = {
     emails,
+    activeEmail,
+    setActiveEmail,
+    currentType,
     loading,
     error,
     filters,

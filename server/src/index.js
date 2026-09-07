@@ -406,21 +406,23 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
     // 1. Quota cooldown guard
     if (now < quotaCooldownUntil) {
       console.log('⏳ Serving inbox from database cache during Gmail quota cooldown');
-      const cached = await Email.find().sort({ date: -1 }).limit(20);
+      const cached = await Email.find().sort({ date: -1 }).limit(50);
       return res.json(cached);
     }
 
-    // 2. 30-second in-memory cache to prevent multiple tabs from burning quota
-    if (cachedInboxData.emails.length > 0 && (now - cachedInboxData.timestamp < 30000)) {
+    // 2. In-memory cache to prevent multiple quick calls from burning quota (bypass if force/refresh query param)
+    const forceRefresh = req.query.force === 'true' || req.query.refresh === 'true';
+    if (!forceRefresh && cachedInboxData.emails.length > 0 && (now - cachedInboxData.timestamp < 30000)) {
       return res.json(cachedInboxData.emails);
     }
 
     const gmail = await getGmailClient(req.user);
+    const fetchLimit = Math.max(30, parseInt(req.query.limit) || 35);
 
     const response = await gmail.users.messages.list({
       userId: 'me',
       q: 'in:inbox',
-      maxResults: 15
+      maxResults: fetchLimit
     });
 
     const emails = [];
@@ -463,12 +465,12 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
             threadId: msg.data.threadId,
             from: parseEmailAddress(getHeader('from')),
             to: parseEmailAddresses(getHeader('to')),
-            subject: getHeader('subject'),
+            subject: getHeader('subject') || '(No subject)',
             body: body || msg.data.snippet,
             snippet: msg.data.snippet,
-            date: new Date(getHeader('date')),
+            date: new Date(getHeader('date') || Date.now()),
             isRead: !msg.data.labelIds?.includes('UNREAD'),
-            labels: msg.data.labelIds || []
+            labels: msg.data.labelIds || ['INBOX']
           };
 
           await Email.findOneAndUpdate(
@@ -493,7 +495,7 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
       quotaCooldownUntil = Date.now() + 120000;
     }
     try {
-      const cached = await Email.find().sort({ date: -1 }).limit(20);
+      const cached = await Email.find().sort({ date: -1 }).limit(50);
       return res.json(cached);
     } catch (e) {
       res.status(500).json({ error: error.message });
@@ -505,20 +507,22 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
   try {
     const now = Date.now();
     if (now < quotaCooldownUntil) {
-      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(20);
+      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(50);
       return res.json(cached);
     }
 
-    if (cachedSentData.emails.length > 0 && (now - cachedSentData.timestamp < 30000)) {
+    const forceRefresh = req.query.force === 'true' || req.query.refresh === 'true';
+    if (!forceRefresh && cachedSentData.emails.length > 0 && (now - cachedSentData.timestamp < 30000)) {
       return res.json(cachedSentData.emails);
     }
 
     const gmail = await getGmailClient(req.user);
+    const fetchLimit = Math.max(30, parseInt(req.query.limit) || 35);
 
     const response = await gmail.users.messages.list({
       userId: 'me',
       q: 'in:sent',
-      maxResults: 15
+      maxResults: fetchLimit
     });
 
     const emails = [];
@@ -560,10 +564,10 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
             threadId: msg.data.threadId,
             from: parseEmailAddress(getHeader('from')),
             to: parseEmailAddresses(getHeader('to')),
-            subject: getHeader('subject'),
+            subject: getHeader('subject') || '(No subject)',
             body: body || msg.data.snippet,
             snippet: msg.data.snippet,
-            date: new Date(getHeader('date')),
+            date: new Date(getHeader('date') || Date.now()),
             isRead: true,
             labels: ['SENT', ...(msg.data.labelIds || [])]
           };
@@ -589,7 +593,7 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
       quotaCooldownUntil = Date.now() + 120000;
     }
     try {
-      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(20);
+      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(50);
       return res.json(cached);
     } catch (e) {
       res.status(500).json({ error: error.message });
@@ -764,6 +768,7 @@ app.post('/api/emails/send', authenticateToken, async (req, res) => {
       }
     });
 
+    cachedSentData.emails = [];
     console.log('📤 Email sent successfully');
     res.json({
       success: true,
@@ -902,13 +907,24 @@ const handleAiCommand = async (req, res) => {
       message = email ? `Opened email: ${email.subject}` : 'No matching email found';
     } else if (parsed.action === 'REPLY') {
       let targetEmail = null;
-      if (context.currentEmailId || parsed.data?.emailId) {
-        targetEmail = await Email.findOne({ emailId: context.currentEmailId || parsed.data?.emailId });
+      const idToSearch = context.currentEmailId || parsed.data?.emailId;
+      if (idToSearch) {
+        targetEmail = await Email.findOne({
+          $or: [
+            { emailId: idToSearch },
+            ...(mongoose.Types.ObjectId.isValid(idToSearch) ? [{ _id: idToSearch }] : [])
+          ]
+        });
       }
       if (!targetEmail && context.currentEmailSender) {
         targetEmail = {
-          from: { email: context.currentEmailSender, name: context.currentEmailSender },
-          subject: context.currentEmailSubject || 'Email'
+          emailId: context.currentEmailId,
+          from: { 
+            email: context.currentEmailSender, 
+            name: context.currentEmailSenderName || context.currentEmailSender.split('@')[0] 
+          },
+          subject: context.currentEmailSubject || 'Email',
+          body: context.currentEmailBody || ''
         };
       }
       if (!targetEmail) {
@@ -921,12 +937,25 @@ const handleAiCommand = async (req, res) => {
         };
       }
 
-      const replyBody = parsed.data?.body || parsed.data?.message || 'Thank you for your email. I will follow up shortly.';
+      const senderName = targetEmail?.from?.name || targetEmail?.from?.email?.split('@')[0] || 'there';
+      const emailSubject = targetEmail?.subject || 'your email';
+      const userInstruction = parsed.data?.message || parsed.data?.body;
+
+      let replyBody = '';
+      if (userInstruction && userInstruction.trim().length > 0 && userInstruction.toLowerCase() !== 'to this' && userInstruction.toLowerCase() !== 'to this email') {
+        replyBody = `Hi ${senderName},\n\n${userInstruction}\n\nBest regards`;
+      } else {
+        replyBody = `Hi ${senderName},\n\nThank you for reaching out regarding "${emailSubject}".\n\nI have received your email and will review the details to follow up shortly.\n\nBest regards`;
+      }
+
+      const replyTo = targetEmail?.from?.email || context.currentEmailSender || '';
+      const replySubject = targetEmail?.subject ? (targetEmail.subject.startsWith('Re:') ? targetEmail.subject : `Re: ${targetEmail.subject}`) : 'Re: ';
+
       result = {
         email: targetEmail,
         reply: {
-          to: targetEmail?.from?.email || '',
-          subject: targetEmail?.subject ? (targetEmail.subject.startsWith('Re:') ? targetEmail.subject : `Re: ${targetEmail.subject}`) : 'Re: Email',
+          to: replyTo,
+          subject: replySubject,
           body: replyBody
         }
       };
@@ -1022,6 +1051,105 @@ app.post('/api/emails/sync', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ========================================
+// BACKGROUND REAL-TIME SYNC WORKER
+// ========================================
+let isSyncInProgress = false;
+
+const startBackgroundSync = () => {
+  setInterval(async () => {
+    if (isSyncInProgress) return;
+    if (Date.now() < quotaCooldownUntil) return;
+
+    try {
+      isSyncInProgress = true;
+      const activeUser = await User.findOne({
+        accessToken: { $exists: true, $ne: null }
+      }).sort({ updatedAt: -1, createdAt: -1 });
+
+      if (!activeUser) {
+        isSyncInProgress = false;
+        return;
+      }
+
+      const gmail = await getGmailClient(activeUser);
+      const response = await gmail.users.messages.list({
+        userId: 'me',
+        q: 'in:inbox',
+        maxResults: 10
+      });
+
+      if (!response.data?.messages || response.data.messages.length === 0) {
+        isSyncInProgress = false;
+        return;
+      }
+
+      for (const msgSummary of response.data.messages) {
+        const existing = await Email.findOne({ emailId: msgSummary.id });
+        if (existing) continue;
+
+        const msg = await gmail.users.messages.get({
+          userId: 'me',
+          id: msgSummary.id,
+          format: 'full'
+        });
+
+        const headers = msg.data?.payload?.headers || [];
+        const getHeader = (name) => {
+          const h = headers.find(header => header.name.toLowerCase() === name.toLowerCase());
+          return h ? h.value : '';
+        };
+
+        let body = '';
+        if (msg.data.payload.parts) {
+          const textPart = msg.data.payload.parts.find(p =>
+            p.mimeType === 'text/plain' || p.mimeType === 'text/html'
+          );
+          if (textPart && textPart.body.data) {
+            body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+          }
+        } else if (msg.data.payload.body && msg.data.payload.body.data) {
+          body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+        }
+
+        const newEmailData = {
+          emailId: msg.data.id,
+          threadId: msg.data.threadId,
+          from: parseEmailAddress(getHeader('from')),
+          to: parseEmailAddresses(getHeader('to')),
+          subject: getHeader('subject') || '(No subject)',
+          body: body || msg.data.snippet,
+          snippet: msg.data.snippet,
+          date: new Date(getHeader('date') || Date.now()),
+          isRead: !msg.data.labelIds?.includes('UNREAD'),
+          labels: msg.data.labelIds || ['INBOX']
+        };
+
+        await Email.findOneAndUpdate(
+          { emailId: msg.data.id },
+          newEmailData,
+          { upsert: true }
+        );
+
+        cachedInboxData.emails = [];
+        io.emit('new-email', newEmailData);
+        io.emit('emails-synced', { count: 1, timestamp: new Date().toISOString() });
+        console.log(`📨 [Auto-Sync] Detected new incoming email: "${newEmailData.subject}" from ${newEmailData.from?.email}`);
+      }
+    } catch (err) {
+      if (err.message?.includes('Quota') || err.message?.includes('limit') || err.code === 429) {
+        quotaCooldownUntil = Date.now() + 120000;
+      }
+    } finally {
+      isSyncInProgress = false;
+    }
+  }, 15000);
+};
+
+// Start poller once server boots
+startBackgroundSync();
+
 
 // ========================================
 // SOCKET.IO

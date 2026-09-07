@@ -171,14 +171,25 @@ const parseCommandRuleBased = (command, context = {}) => {
   }
 
   // 3. REPLY ACTION
-  if (lower.startsWith('reply') || lower.includes('reply to this') || lower.includes('reply saying') || lower.includes('reply that')) {
-    const msgMatch = command.match(/reply\s+(?:saying|that|with)?\s*['"]?([^'"]+?)['"]?$/i);
+  const isReply = lower.startsWith('reply') || lower.includes('reply to this') || lower.includes('reply saying') || lower.includes('reply that') || lower.includes('send a reply');
+  if (isReply) {
+    let userMsg = '';
+    if (/^reply\s*(?:to\s*this(?:\s*email)?)?\s*$/i.test(command.trim())) {
+      userMsg = '';
+    } else {
+      userMsg = command.replace(/^(?:please\s+)?reply\s+(?:to\s+this(?:\s+email)?\s*)?(?:saying|that|with)?\s*/i, '').trim();
+      userMsg = userMsg.replace(/^['"]|['"]$/g, '');
+      if (userMsg.toLowerCase() === 'to this' || userMsg.toLowerCase() === 'to this email') {
+        userMsg = '';
+      }
+    }
+
     return {
       action: 'REPLY',
       message: 'Drafting contextual reply',
       data: {
         emailId: context.currentEmailId || null,
-        message: msgMatch ? msgMatch[1].trim() : 'Thank you for your email. I will follow up shortly.'
+        message: userMsg || 'Thank you for your email. I will follow up shortly.'
       }
     };
   }

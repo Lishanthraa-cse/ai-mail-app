@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchEmail, fetchThread, sendEmail } from '../../services/api';
+import { useEmailContext } from '../../context/EmailContext';
 import { 
   ArrowLeftIcon, 
   StarIcon, 
@@ -35,6 +36,7 @@ const getGradientForString = (str = '') => {
 const EmailDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { setActiveEmail } = useEmailContext();
   const [email, setEmail] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
   const [expandedThreads, setExpandedThreads] = useState({});
@@ -44,15 +46,19 @@ const EmailDetail = () => {
   const [showReplyBox, setShowReplyBox] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const loadEmailAndThread = async () => {
       try {
         const data = await fetchEmail(id);
+        if (!isMounted) return;
         setEmail(data);
+        setActiveEmail(data);
 
         // Fetch thread messages if threadId exists (+3 bonus)
         if (data.threadId) {
           try {
             const threadData = await fetchThread(data.threadId);
+            if (!isMounted) return;
             if (Array.isArray(threadData) && threadData.length > 0) {
               setThreadMessages(threadData);
               // Expand the latest message by default
@@ -64,14 +70,20 @@ const EmailDetail = () => {
           }
         }
       } catch (error) {
+        if (!isMounted) return;
         toast.error('Failed to load email');
         navigate('/inbox');
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     loadEmailAndThread();
-  }, [id, navigate]);
+
+    return () => {
+      isMounted = false;
+      setActiveEmail(null);
+    };
+  }, [id, navigate, setActiveEmail]);
 
   const handleSendReply = async () => {
     if (!replyBody.trim()) {
