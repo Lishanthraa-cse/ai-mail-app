@@ -222,11 +222,6 @@ function parseEmailAddresses(str) {
 // ROUTES
 // ========================================
 
-// Root landing page
-app.get('/', (req, res) => {
-  res.json({ message: 'AI Mail API Server' });
-});
-
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -1183,14 +1178,24 @@ io.on('connection', (socket) => {
 // SERVE STATIC CLIENT (Single Deployment)
 // ========================================
 
-const clientBuildPath = path.resolve(__dirname, '../../client/build');
-if (fs.existsSync(clientBuildPath)) {
+const candidatePaths = [
+  path.resolve(__dirname, '../../client/build'),
+  path.resolve(process.cwd(), 'client/build'),
+  path.resolve(__dirname, '../client/build')
+];
+const clientBuildPath = candidatePaths.find(p => fs.existsSync(p));
+
+if (clientBuildPath) {
   app.use(express.static(clientBuildPath));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
       return next();
     }
     res.sendFile(path.resolve(clientBuildPath, 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.json({ message: 'AI Mail API Server' });
   });
 }
 
