@@ -1,6 +1,28 @@
 # AI-Powered Mail Web Application
 
+[![Live Deployment](https://img.shields.io/badge/Live_App-ai--mail--app.onrender.com-success?style=for-the-badge&logo=render)](https://ai-mail-app.onrender.com)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Lishanthraa--cse%2Fai--mail--app-blue?style=for-the-badge&logo=github)](https://github.com/Lishanthraa-cse/ai-mail-app)
+
 An intelligent, full-stack email client connected to Google Gmail OAuth 2.0 where an integrated AI Assistant **directly controls and paints the UI programmatically** — composing emails, navigating views, filtering data, and executing contextual actions on behalf of the user through natural language.
+
+---
+
+## 🌐 Live Deployment & Online Demo
+
+The application is deployed live to production as a unified full-stack single-service on **Render**:
+
+- 🔗 **Live Website URL**: **[https://ai-mail-app.onrender.com](https://ai-mail-app.onrender.com)**
+- ✨ **Instant Demo Preview**: Single-click access via the **"Explore Instant Demo Preview"** button on the landing page — test full AI copilot features, sample threads, searching, and compose simulation instantly without requiring Google account authorization.
+- 📬 **Live Google Gmail OAuth**: Click **"Sign in with Google"** to authenticate directly with Google and synchronize real-time emails from your actual Gmail inbox.
+
+### Single-Service Unified Deployment Architecture
+
+Rather than separating the frontend and backend into two different domain URLs (which creates CORS pre-flight delays, dual hosting overhead, and complex cookie/token cross-origin handshakes), this project uses a **single-service full-stack deployment**:
+
+1. **Unified Origin**: Both the React Single Page Application (SPA) and the Express REST API / Socket.IO server are served under `https://ai-mail-app.onrender.com`.
+2. **Automated Root Build**: The root `npm run build` command installs dependencies for both `client` and `server`, runs `react-scripts build` into `client/build`, and bundles the app for production.
+3. **Static SPA Serving with Route Fallback**: The Express backend serves the prebuilt React static files on `/` and delegates all client routes (`/inbox`, `/sent`, `/email/:id`) back to `index.html` via client-side routing fallback.
+4. **Zero CORS Friction**: Browser requests connect directly to `/api/*` and WebSocket gateways on the same origin without third-party cookie restrictions.
 
 ---
 
@@ -104,12 +126,56 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 
 ---
 
+## Production Deployment Guide (Render)
+
+This repository is pre-configured for seamless single-service deployment to **Render**, **Railway**, or any Node.js cloud platform:
+
+### 1. Create Web Service on Render
+1. Go to [Render Dashboard](https://dashboard.render.com/) and click **New +** -> **Web Service**.
+2. Connect your GitHub repository (`https://github.com/Lishanthraa-cse/ai-mail-app.git`).
+3. Select the `main` branch.
+
+### 2. Configure Service Settings
+- **Runtime**: `Node`
+- **Build Command**: `npm run build` *(installs root, client, and server dependencies and compiles the React production bundle)*
+- **Start Command**: `npm start` *(runs `node server/src/index.js`)*
+
+### 3. Environment Variables Configuration
+Under the **Environment Variables** tab, add the following production variables:
+
+| Variable Key | Production Value / Description | Example |
+| :--- | :--- | :--- |
+| `NODE_ENV` | Environment mode | `production` |
+| `PORT` | Web server port (Render automatically provides `$PORT`) | `10000` |
+| `MONGODB_URI` | MongoDB Atlas connection string | `mongodb+srv://user:pass@cluster0.mongodb.net/ai-mail-app` |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | `*.apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | `GOCSPX-*` |
+| `GOOGLE_REDIRECT_URI` | Production OAuth Callback URL | `https://ai-mail-app.onrender.com/api/auth/google/callback` |
+| `CLIENT_URL` | Production Frontend Origin | `https://ai-mail-app.onrender.com` |
+| `SESSION_SECRET` | Express session security key | *Random secure string* |
+| `JWT_SECRET` | Token signing secret | *Random secure string* |
+| `GEMINI_API_KEY` | *(Optional)* Google Gemini LLM key | *Gemini API Key* |
+
+### 4. Google Cloud Console OAuth Configuration
+To allow users to log in through the live deployment:
+1. Navigate to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials).
+2. Edit your **OAuth 2.0 Client ID**.
+3. Under **Authorized JavaScript origins**, add:
+   - `https://ai-mail-app.onrender.com`
+4. Under **Authorized redirect URIs**, add:
+   - `https://ai-mail-app.onrender.com/api/auth/google/callback`
+5. Click **Save**.
+6. Under [OAuth Consent Screen > Audience](https://console.cloud.google.com/auth/audience), add tester Google email addresses under **Test users** (or click **Publish App** to allow any Google account to sign in).
+
+---
+
 ## Tech stack used in project
 
 - **Frontend**: React 18, Tailwind CSS, Heroicons, Socket.IO Client, React Router v6, React Hot Toast
 - **Backend**: Node.js, Express, Socket.IO, Google APIs (OAuth 2.0 & Gmail v1 REST API), Passport.js, Mongoose, JSON Web Tokens (JWT)
 - **Database**: MongoDB Atlas
 - **Real-Time Synchronization**: Socket.IO bi-directional WebSocket gateway & background sync worker
+- **Cloud Hosting & Deployment**: Render (Single-Service Full-Stack Architecture), GitHub Actions / Auto-deploy CI/CD
 
 ---
 
@@ -145,6 +211,13 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 5. **Context-Aware Active Email Synchronization**:
    - *Problem*: When reading an email and instructing the assistant to *"Reply to this"*, standard chat widgets lack state awareness of what is currently on screen.
    - *Decision*: We introduced `activeEmail` state management into `EmailContext`. Whenever `/email/:id` is mounted, the active email's sender, subject, body, and thread ID are shared with the AI panel. When the user says *"Reply to this"*, the assistant automatically targets the sender, prepends `Re:`, generates a contextually relevant response, and visibly opens the Compose interface.
+
+6. **Unified Single-Service Full-Stack Deployment Architecture**:
+   - *Problem*: Traditional MERN stack deployments split the frontend (e.g. Vercel) and backend (e.g. Render/Railway) across two distinct domains. This introduces cross-origin cookie blocking, complex CORS configuration, pre-flight `OPTIONS` request latency, dual build tracking, and confusing dual-URL setups for users and graders.
+   - *Decision*: We unified the entire full-stack system into a single production service on Render:
+     - The root `package.json` coordinates building the React SPA into `client/build` and installing server dependencies.
+     - Express serves the production React build statically on the root URL while handling API routes and WebSocket gateway connections on the exact same host.
+     - Result: **Zero CORS latency, single deployment pipeline, simplified environment variables, and one unified URL for users.**
 
 ---
 
