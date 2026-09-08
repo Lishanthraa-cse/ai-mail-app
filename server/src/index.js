@@ -250,67 +250,9 @@ app.get('/api/auth/google/callback', passport.authenticate('google', {
   res.redirect(`${CLIENT_URL}/auth/callback?token=${token}`);
 });
 
-// Demo preview sample emails for seamless instant exploration
-const DEMO_EMAILS = [
-  {
-    emailId: 'demo-1',
-    threadId: 'thread-q4-ai-roadmap',
-    threadCount: 2,
-    from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
-    to: [{ name: 'You', email: 'user@aimail.com' }],
-    subject: 'Quarterly AI Roadmap & Integration Strategy',
-    snippet: 'Hey team, I put together the draft for our upcoming Q4 AI agent rollout.',
-    body: 'Hey team,\n\nI put together the draft for our upcoming Q4 AI agent rollout. Please take a look at the attached doc before our sync tomorrow at 10 AM.\n\nKey highlights:\n- Direct LLM function calling for inbox actions\n- Sub-second UI paint response\n- Automated draft generation and summary\n\nLooking forward to your feedback!\n\nBest,\nAlex Rivera\nVP of Product, TechCorp',
-    date: new Date(Date.now() - 45 * 60000),
-    isRead: false,
-    labels: ['INBOX', 'IMPORTANT']
-  },
-  {
-    emailId: 'demo-1-reply',
-    threadId: 'thread-q4-ai-roadmap',
-    from: { name: 'Elena Rostova', email: 'elena@techcorp.io' },
-    to: [{ name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' }, { name: 'You', email: 'user@aimail.com' }],
-    subject: 'Re: Quarterly AI Roadmap & Integration Strategy',
-    snippet: 'I reviewed the proposal and strongly agree with the direct LLM approach.',
-    body: 'Hi Alex,\n\nI reviewed the proposal and strongly agree with the direct LLM approach. We should ensure sub-second latency for UI form filling and keep the fallback intent parser resilient.\n\nI will prepare the telemetry benchmarks ahead of the 10 AM sync.\n\nBest,\nElena Rostova\nLead AI Architect',
-    date: new Date(Date.now() - 15 * 60000),
-    isRead: true,
-    labels: ['INBOX']
-  },
-  {
-    emailId: 'demo-2',
-    threadId: 'thread-design-review',
-    from: { name: 'Sarah Chen', email: 'sarah.c@designsystems.dev' },
-    subject: 'Design Review: Glassmorphic UI & Micro-Interactions',
-    snippet: 'The new frosted glass components and micro-interactions look incredible!',
-    body: 'Hi everyone,\n\nThe new frosted glass components and micro-interactions look incredible! Loved the vibrant gradient avatars and instant AI replies.\n\nThe typography contrasts nicely against both light and dark themes, and all buttons pass accessibility guidelines.\n\nLet me know when the final build is deployed.\n\nCheers,\nSarah Chen',
-    date: new Date(Date.now() - 2 * 3600000),
-    isRead: false,
-    labels: ['INBOX']
-  },
-  {
-    emailId: 'demo-3',
-    threadId: 'thread-stripe-billing',
-    from: { name: 'Stripe Billing', email: 'invoices@stripe.com' },
-    subject: 'Invoice #INV-2026-0906 for Workspace Pro',
-    snippet: 'Your invoice for the period Sep 1 – Sep 30 is ready.',
-    body: 'Hello,\n\nYour monthly subscription for AI Mail Workspace Pro has renewed. The amount of $49.00 has been charged successfully.\n\nSummary:\n- AI Assistant Unlimited Actions\n- Real-time Gmail Sync\n- Priority Support\n\nThank you for choosing AI Mail!\n\nStripe Payments Team',
-    date: new Date(Date.now() - 22 * 3600000),
-    isRead: true,
-    labels: ['INBOX', 'FINANCE']
-  },
-  {
-    emailId: 'demo-4',
-    threadId: 'thread-security-alert',
-    from: { name: 'Google Cloud Security', email: 'no-reply@accounts.google.com' },
-    subject: 'Security Alert: New sign-in detected on Windows',
-    snippet: 'We noticed a new login to your Google Account from Windows 11.',
-    body: 'Hi User,\n\nA new login was detected from your Windows workstation.\n\nDevice: Windows 11 Desktop\nLocation: Localhost\n\nIf you recognize this activity, you can safely ignore this notification.\n\nGoogle Cloud Security Team',
-    date: new Date(Date.now() - 48 * 3600000),
-    isRead: true,
-    labels: ['INBOX', 'SECURITY']
-  }
-];
+// Demo preview sample emails (50 realistic conversations) isolated from user database
+const { DEMO_EMAILS } = require('./demoData');
+const demoSentEmails = [];
 
 app.get('/api/auth/me', async (req, res) => {
   try {
@@ -406,10 +348,6 @@ const authenticateToken = async (req, res, next) => {
 app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
   try {
     if (req.user?.isDemo) {
-      const cached = await Email.find().sort({ date: -1 }).limit(50);
-      if (cached && cached.length > 0) {
-        return res.json(cached);
-      }
       return res.json(DEMO_EMAILS);
     }
 
@@ -516,8 +454,7 @@ app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
 app.get('/api/emails/sent', authenticateToken, async (req, res) => {
   try {
     if (req.user?.isDemo) {
-      const cached = await Email.find({ labels: 'SENT' }).sort({ date: -1 }).limit(50);
-      return res.json(cached || []);
+      return res.json(demoSentEmails);
     }
 
     const now = Date.now();
@@ -619,11 +556,40 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
 // Search emails (Support GET and POST) - Must be defined BEFORE /api/emails/:id
 const handleEmailSearch = async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    const isDemo = token === 'demo_preview_token' || (token && token.startsWith('demo_'));
+
     const search = req.query.q || req.query.search || req.body?.search || req.body?.q;
     const dateFrom = req.query.dateFrom || req.body?.dateFrom;
     const dateTo = req.query.dateTo || req.body?.dateTo;
     const unreadOnly = req.query.unread === 'true' || req.query.unreadOnly === 'true' || req.body?.unreadOnly;
     const sender = req.query.from || req.query.sender || req.body?.sender || req.body?.from;
+
+    if (isDemo) {
+      let filtered = [...DEMO_EMAILS];
+      if (search) {
+        const s = search.toLowerCase();
+        filtered = filtered.filter(e => 
+          (e.subject && e.subject.toLowerCase().includes(s)) ||
+          (e.body && e.body.toLowerCase().includes(s)) ||
+          (e.snippet && e.snippet.toLowerCase().includes(s)) ||
+          (e.from?.name && e.from.name.toLowerCase().includes(s)) ||
+          (e.from?.email && e.from.email.toLowerCase().includes(s))
+        );
+      }
+      if (sender) {
+        const snd = sender.toLowerCase();
+        filtered = filtered.filter(e => 
+          (e.from?.email && e.from.email.toLowerCase().includes(snd)) ||
+          (e.from?.name && e.from.name.toLowerCase().includes(snd))
+        );
+      }
+      if (unreadOnly) {
+        filtered = filtered.filter(e => !e.isRead);
+      }
+      return res.json(filtered.slice(0, 50));
+    }
 
     const query = {};
 
@@ -657,35 +623,12 @@ app.post('/api/emails/search', handleEmailSearch);
 app.get('/api/emails/thread/:threadId', async (req, res) => {
   try {
     const threadId = req.params.threadId;
-    let threadEmails = await Email.find({ threadId }).sort({ date: 1 });
-    
-    if (!threadEmails || threadEmails.length === 0) {
-      if (threadId === 'thread-q4-ai-roadmap') {
-        threadEmails = [
-          {
-            emailId: 'demo-1',
-            threadId: 'thread-q4-ai-roadmap',
-            from: { name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' },
-            to: [{ name: 'You', email: 'user@aimail.com' }],
-            subject: 'Quarterly AI Roadmap & Integration Strategy',
-            body: 'Hey team,\n\nI put together the draft for our upcoming Q4 AI agent rollout. Please take a look at the attached doc before our sync tomorrow at 10 AM.\n\nKey highlights:\n- Direct LLM function calling for inbox actions\n- Sub-second UI paint response\n- Automated draft generation and summary\n\nLooking forward to your feedback!\n\nBest,\nAlex Rivera\nVP of Product, TechCorp',
-            date: new Date(Date.now() - 45 * 60000),
-            isRead: true
-          },
-          {
-            emailId: 'demo-1-reply',
-            threadId: 'thread-q4-ai-roadmap',
-            from: { name: 'Elena Rostova', email: 'elena@techcorp.io' },
-            to: [{ name: 'Alex Rivera', email: 'alex.rivera@techcorp.io' }, { name: 'You', email: 'user@aimail.com' }],
-            subject: 'Re: Quarterly AI Roadmap & Integration Strategy',
-            body: 'Hi Alex,\n\nI reviewed the proposal and strongly agree with the direct LLM approach. We should ensure sub-second latency for UI form filling and keep the fallback intent parser resilient.\n\nI will prepare the telemetry benchmarks ahead of the 10 AM sync.\n\nBest,\nElena',
-            date: new Date(Date.now() - 15 * 60000),
-            isRead: false
-          }
-        ];
-      }
+    const demoMatches = DEMO_EMAILS.filter(e => e.threadId === threadId);
+    if (demoMatches.length > 0) {
+      return res.json(demoMatches);
     }
-    
+
+    let threadEmails = await Email.find({ threadId }).sort({ date: 1 });
     res.json(threadEmails || []);
   } catch (error) {
     console.error('Error fetching thread:', error);
@@ -695,10 +638,17 @@ app.get('/api/emails/thread/:threadId', async (req, res) => {
 
 app.get('/api/emails/:id', async (req, res) => {
   try {
+    const demoEmail = DEMO_EMAILS.find(e => e.emailId === req.params.id || e._id === req.params.id);
+    if (demoEmail) {
+      return res.json(demoEmail);
+    }
+    const demoSent = demoSentEmails.find(e => e.emailId === req.params.id);
+    if (demoSent) {
+      return res.json(demoSent);
+    }
+
     let email = await Email.findOne({ emailId: req.params.id });
     if (!email) {
-      email = DEMO_EMAILS.find(e => e.emailId === req.params.id);
-      if (email) return res.json(email);
       return res.status(404).json({ error: 'Email not found' });
     }
 
@@ -715,23 +665,19 @@ app.post('/api/emails/send', authenticateToken, async (req, res) => {
 
     if (req.user?.isDemo) {
       const demoMessageId = 'demo-sent-' + Date.now();
-      try {
-        await Email.create({
-          userId: req.user._id,
-          emailId: demoMessageId,
-          threadId: 'thread-' + demoMessageId,
-          from: { name: 'Demo User', email: 'demo.user@aimail.com' },
-          to: [{ name: to, email: to }],
-          subject,
-          body,
-          snippet: body ? body.substring(0, 100) : '',
-          date: new Date(),
-          isRead: true,
-          labels: ['SENT']
-        });
-      } catch (dbErr) {
-        // Ignore DB save errors in demo
-      }
+      const sentEmail = {
+        emailId: demoMessageId,
+        threadId: 'thread-' + demoMessageId,
+        from: { name: 'Demo User', email: 'demo.user@aimail.com' },
+        to: [{ name: to, email: to }],
+        subject,
+        body,
+        snippet: body ? body.substring(0, 100) : '',
+        date: new Date().toISOString(),
+        isRead: true,
+        labels: ['SENT']
+      };
+      demoSentEmails.unshift(sentEmail);
       return res.json({
         success: true,
         messageId: demoMessageId,

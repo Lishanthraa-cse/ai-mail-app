@@ -8,6 +8,7 @@ import InboxList from './components/Inbox/InboxList';
 import EmailDetail from './components/Email/EmailDetail';
 import EmailCompose from './components/Email/EmailCompose';
 import AssistantPanel from './components/Assistant/AssistantPanel';
+import PrivacyPolicy from './components/Legal/PrivacyPolicy';
 import { initializeSocket } from './services/socket';
 import './styles/App.css';
 
@@ -70,6 +71,8 @@ function AppContent({
               <Route path="/inbox" element={<InboxList onEmailSelect={setSelectedEmail} />} />
               <Route path="/sent" element={<InboxList sent={true} onEmailSelect={setSelectedEmail} />} />
               <Route path="/email/:id" element={<EmailDetail />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<PrivacyPolicy />} />
               <Route path="/" element={<Navigate to="/inbox" />} />
             </Routes>
           </div>
@@ -160,6 +163,10 @@ function App() {
     );
   }
 
+  if (typeof window !== 'undefined' && (window.location.pathname === '/privacy' || window.location.pathname === '/terms')) {
+    return <PrivacyPolicy />;
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="login-container">
@@ -236,11 +243,11 @@ function App() {
           </div>
           
           <div className="login-footer">
-            <span>Free</span>
+            <a href="/privacy" className="hover:text-indigo-400 underline transition-colors">Privacy Policy</a>
             <span className="login-footer-dot">•</span>
-            <span>Secure</span>
+            <a href="/terms" className="hover:text-indigo-400 underline transition-colors">Terms of Service</a>
             <span className="login-footer-dot">•</span>
-            <span>AI-Powered</span>
+            <span>Free & Secure</span>
           </div>
           
           <div className="login-tech-badge">
