@@ -221,7 +221,7 @@ Programmatically controlling the UI — filling forms, filtering emails, and ren
 ![AI Assistant Controlling UI](docs/screenshots/ai-assistant.png)
 
 ### Live Demo Video
-[![AI Mail App Demo](docs/screenshots/dashboard-overview.png)](docs/Deployed%20live%20demo.mp4)
+[![AI Mail App Demo](docs/screenshots/inbox-demo.png)](docs/Deployed%20live%20demo.mp4)
 
 *Click the thumbnail above to watch the full walkthrough*
 
