@@ -9,20 +9,20 @@ An intelligent, full-stack email client connected to Google Gmail OAuth 2.0 wher
 
 ## 🌐 Live Deployment & Online Demo
 
-The application is deployed live to production as a unified full-stack single-service on **Render**:
+The app is live on **Render** as a unified full-stack service:
 
-- 🔗 **Live Website URL**: **[https://ai-mail-app.onrender.com](https://ai-mail-app.onrender.com)**
-- ✨ **Instant Demo Preview**: Single-click access via the **"Explore Instant Demo Preview"** button on the landing page — test full AI copilot features, sample threads, searching, and compose simulation instantly without requiring Google account authorization.
-- 📬 **Live Google Gmail OAuth**: Click **"Sign in with Google"** to authenticate directly with Google and synchronize real-time emails from your actual Gmail inbox.
+- 🔗 **Live URL**: **[https://ai-mail-app.onrender.com](https://ai-mail-app.onrender.com)**
+- ✨ **Instant Demo**: Click "Explore Instant Demo Preview" — test AI features without Google login
+- 📬 **Gmail OAuth**: Sign in with Google to sync your real inbox
 
-### Single-Service Unified Deployment Architecture
+### Architecture: Single-Service Deployment
 
-Rather than separating the frontend and backend into two different domain URLs (which creates CORS pre-flight delays, dual hosting overhead, and complex cookie/token cross-origin handshakes), this project uses a **single-service full-stack deployment**:
+Frontend (React SPA) and Backend (Express API + Socket.IO) are served from the same origin:
 
-1. **Unified Origin**: Both the React Single Page Application (SPA) and the Express REST API / Socket.IO server are served under `https://ai-mail-app.onrender.com`.
-2. **Automated Root Build**: The root `npm run build` command installs dependencies for both `client` and `server`, runs `react-scripts build` into `client/build`, and bundles the app for production.
-3. **Static SPA Serving with Route Fallback**: The Express backend serves the prebuilt React static files on `/` and delegates all client routes (`/inbox`, `/sent`, `/email/:id`) back to `index.html` via client-side routing fallback.
-4. **Zero CORS Friction**: Browser requests connect directly to `/api/*` and WebSocket gateways on the same origin without third-party cookie restrictions.
+- **Unified URL**: Both API and static files under `https://ai-mail-app.onrender.com`
+- **Zero CORS**: No cross-origin requests, no pre-flight latency, no cookie issues
+- **Root Build**: `npm run build` compiles React into `client/build`, Express serves it
+- **SPA Fallback**: All client routes (`/inbox`, `/email/:id`) route to `index.html`
 
 ---
 
@@ -130,7 +130,7 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 
 The application is live at **[https://ai-mail-app.onrender.com](https://ai-mail-app.onrender.com)**.
 
-### Deployment Configuration
+### 1. Deployment Configuration
 
 For deploying your own instance on Render, Railway, or similar platforms:
 
@@ -138,7 +138,7 @@ For deploying your own instance on Render, Railway, or similar platforms:
 - **Start Command**: `npm start`
 - **Runtime**: Node.js
 
-### Required Environment Variables
+### 2. Required Environment Variables
 
 | Variable | Description |
 |:---------|:------------|
@@ -150,7 +150,7 @@ For deploying your own instance on Render, Railway, or similar platforms:
 | `JWT_SECRET` | JWT signing secret |
 | `GEMINI_API_KEY` | *(Optional)* Google Gemini API key |
 
-### Google OAuth Setup
+### 3. Google OAuth Setup
 
 Add your production domain to:
 - **Authorized JavaScript origins**: `https://your-domain.com`
@@ -224,6 +224,8 @@ Programmatically controlling the UI — filling forms, filtering emails, and ren
 [![AI Mail App Demo](docs/screenshots/dashboard-overview.png)](docs/Deployed%20live%20demo.mp4)
 
 *Click the thumbnail above to watch the full walkthrough*
+
+---
 
 ### Core AI Workflows
 
