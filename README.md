@@ -213,12 +213,12 @@ Add your production domain to:
 ### Dashboard Overview
 Glassmorphic UI with gradient avatars, unread badges, and integrated AI Assistant panel:
 
-![Dashboard Overview](docs/screenshots/dashboard-overview.png)
+![Dashboard Overview](docs/screenshots/inbox-demo.png)
 
 ### AI Assistant in Action
 Programmatically controlling the UI — filling forms, filtering emails, and rendering action cards:
 
-![AI Assistant Controlling UI](docs/screenshots/ai-copilot-controls-ui.png)
+![AI Assistant Controlling UI](docs/screenshots/ai-assistant.png)
 
 ### Live Demo Video
 [![AI Mail App Demo](docs/screenshots/dashboard-overview.png)](docs/Deployed%20live%20demo.mp4)
