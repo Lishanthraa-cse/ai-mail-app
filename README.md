@@ -126,46 +126,37 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 
 ---
 
-## Production Deployment Guide (Render)
+## Production Deployment
 
-This repository is pre-configured for seamless single-service deployment to **Render**, **Railway**, or any Node.js cloud platform:
+The application is live at **[https://ai-mail-app.onrender.com](https://ai-mail-app.onrender.com)**.
 
-### 1. Create Web Service on Render
-1. Go to [Render Dashboard](https://dashboard.render.com/) and click **New +** -> **Web Service**.
-2. Connect your GitHub repository (`https://github.com/Lishanthraa-cse/ai-mail-app.git`).
-3. Select the `main` branch.
+### Deployment Configuration
 
-### 2. Configure Service Settings
-- **Runtime**: `Node`
-- **Build Command**: `npm run build` *(installs root, client, and server dependencies and compiles the React production bundle)*
-- **Start Command**: `npm start` *(runs `node server/src/index.js`)*
+For deploying your own instance on Render, Railway, or similar platforms:
 
-### 3. Environment Variables Configuration
-Under the **Environment Variables** tab, add the following production variables:
+- **Build Command**: `npm run build`
+- **Start Command**: `npm start`
+- **Runtime**: Node.js
 
-| Variable Key | Production Value / Description | Example |
-| :--- | :--- | :--- |
-| `NODE_ENV` | Environment mode | `production` |
-| `PORT` | Web server port (Render automatically provides `$PORT`) | `10000` |
-| `MONGODB_URI` | MongoDB Atlas connection string | `mongodb+srv://user:pass@cluster0.mongodb.net/ai-mail-app` |
-| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | `*.apps.googleusercontent.com` |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | `GOCSPX-*` |
-| `GOOGLE_REDIRECT_URI` | Production OAuth Callback URL | `https://ai-mail-app.onrender.com/api/auth/google/callback` |
-| `CLIENT_URL` | Production Frontend Origin | `https://ai-mail-app.onrender.com` |
-| `SESSION_SECRET` | Express session security key | *Random secure string* |
-| `JWT_SECRET` | Token signing secret | *Random secure string* |
-| `GEMINI_API_KEY` | *(Optional)* Google Gemini LLM key | *Gemini API Key* |
+### Required Environment Variables
 
-### 4. Google Cloud Console OAuth Configuration
-To allow users to log in through the live deployment:
-1. Navigate to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials).
-2. Edit your **OAuth 2.0 Client ID**.
-3. Under **Authorized JavaScript origins**, add:
-   - `https://ai-mail-app.onrender.com`
-4. Under **Authorized redirect URIs**, add:
-   - `https://ai-mail-app.onrender.com/api/auth/google/callback`
-5. Click **Save**.
-6. Under [OAuth Consent Screen > Audience](https://console.cloud.google.com/auth/audience), add tester Google email addresses under **Test users** (or click **Publish App** to allow any Google account to sign in).
+| Variable | Description |
+|:---------|:------------|
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
+| `GOOGLE_REDIRECT_URI` | OAuth callback URL (e.g., `https://your-domain.com/api/auth/google/callback`) |
+| `SESSION_SECRET` | Express session secret |
+| `JWT_SECRET` | JWT signing secret |
+| `GEMINI_API_KEY` | *(Optional)* Google Gemini API key |
+
+### Google OAuth Setup
+
+Add your production domain to:
+- **Authorized JavaScript origins**: `https://your-domain.com`
+- **Authorized redirect URIs**: `https://your-domain.com/api/auth/google/callback`
+
+> **Note**: For testing, add your email as a Test User in Google Cloud Console > OAuth Consent Screen.
 
 ---
 
@@ -179,85 +170,79 @@ To allow users to log in through the live deployment:
 
 ---
 
-## Architecture Decisions and Trade-offs Made
+## Architecture Decisions & Trade-offs
 
-1. **Cache-First Strategy with MongoDB & In-Memory Buffering**:
-   - *Problem*: Calling the Gmail API (`users.messages.list` + individual `users.messages.get`) on every page view or component mount triggers Google's strict 429 quota limits and introduces 3–4 second network latency.
-   - *Decision*: Fetched emails are cached in MongoDB Atlas, supplemented by a 30-second in-memory buffer. Repeat queries resolve from cache in **< 15ms**, ensuring snappy UI interactions and eliminating API rate limiting. When fresh data is needed, requests pass `force=true` to query the live Gmail API.
-   - *Trade-off*: Newly received emails arriving within the 30-second buffer window could experience a delay without push notifications. We solved this with decision #2 below.
+### 1. Cache-First Strategy
+- **Problem**: Gmail API calls trigger rate limits (429) and 3-4s latency on every page load.
+- **Solution**: Cache emails in MongoDB + 30s in-memory buffer. Repeat queries resolve in **<15ms**.
+- **Trade-off**: 30s delay for new emails → solved with real-time sync (#2).
 
-2. **Bi-directional Real-Time Mail Sync (Socket.IO + Server Background Poller)**:
-   - *Problem*: Traditional Gmail OAuth webhooks require a verified public HTTPS domain, Google Cloud Pub/Sub topics, and complex subscription handshakes, which are not viable for localhost development.
-   - *Decision*: We built a hybrid real-time synchronization architecture:
-     - The server runs an automated background poller every 15 seconds that inspects Gmail for new incoming messages, persists them to MongoDB, and immediately broadcasts `new-email` and `emails-synced` events via Socket.IO.
-     - The React client listens to Socket.IO events and automatically prepends new incoming messages to the inbox view without requiring a manual browser refresh.
-     - A client-side silent background sync provides an additional fallback layer every 25 seconds without flashing full-screen loading spinners.
+### 2. Real-Time Sync (Socket.IO + Background Poller)
+- **Problem**: Gmail webhooks require verified HTTPS domains + Pub/Sub setup, not viable for local dev.
+- **Solution**: Server polls Gmail every 15s, persists new emails, broadcasts via Socket.IO. Client prepends new emails instantly without refresh.
+- **Fallback**: Client-side silent sync every 25s as backup.
 
-3. **Multi-Tier AI Engine with Zero-Credit Intelligent Fallback**:
-   - *Problem*: Commercial LLM APIs (such as OpenAI) frequently encounter quota depletion (`insufficient_quota`), network timeouts, or rate limits in production evaluations.
-   - *Decision*: We designed a 3-tier parsing hierarchy:
-     1. **Google Gemini 1.5 Flash / Groq** (Free cloud tier via `GEMINI_API_KEY` or `GROQ_API_KEY`).
-     2. **OpenAI GPT-3.5/4** (if configured and funded).
-     3. **Intelligent Rule-Based NLP Parser** (100% offline, zero latency, zero external credits).
-   - *Outcome*: The application **never crashes or blocks the user**, even when completely offline or with zero API credits.
+### 3. Multi-Tier AI Engine (Zero-Credit Fallback)
+- **Problem**: LLM APIs frequently hit quota limits or timeout.
+- **Solution**: 3-tier hierarchy:
+  1. Gemini / Groq (free tier)
+  2. OpenAI GPT (if funded)
+  3. **Rule-based NLP parser** (offline, zero latency, zero cost)
+- **Outcome**: App never crashes, even offline.
 
-4. **Programmatic UI Control Paradigm**:
-   - *Problem*: Most "AI assistants" merely output conversational text into a chat box, forcing the user to manually copy and paste details or navigate the app themselves.
-   - *Decision*: The AI Assistant directly manipulates the application's React state and DOM:
-     - Natural language commands like *"Compose to alex@techcorp.io with subject 'Meeting'"* visibly pop open the Compose modal and populate the `To`, `Subject`, and `Body` fields.
-     - Filter queries like *"Show unread emails from last week"* mutate the inbox filter state and repaint the main message table.
-     - Navigation commands like *"Open email from Sarah"* trigger declarative router navigation to `/email/:id`.
+### 4. Programmatic UI Control
+- **Problem**: Most AI assistants just output text, forcing manual copy-paste.
+- **Solution**: AI directly manipulates React state & DOM:
+  - `"Compose to alex@..."` → opens & fills compose modal
+  - `"Show unread emails"` → filters inbox
+  - `"Open email from Sarah"` → navigates to `/email/:id`
 
-5. **Context-Aware Active Email Synchronization**:
-   - *Problem*: When reading an email and instructing the assistant to *"Reply to this"*, standard chat widgets lack state awareness of what is currently on screen.
-   - *Decision*: We introduced `activeEmail` state management into `EmailContext`. Whenever `/email/:id` is mounted, the active email's sender, subject, body, and thread ID are shared with the AI panel. When the user says *"Reply to this"*, the assistant automatically targets the sender, prepends `Re:`, generates a contextually relevant response, and visibly opens the Compose interface.
+### 5. Context-Aware Active Email
+- **Problem**: "Reply to this" needs to know which email is open.
+- **Solution**: `activeEmail` state in EmailContext. Assistant auto-targets sender, prepends `Re:`, drafts response, opens compose.
 
-6. **Unified Single-Service Full-Stack Deployment Architecture**:
-   - *Problem*: Traditional MERN stack deployments split the frontend (e.g. Vercel) and backend (e.g. Render/Railway) across two distinct domains. This introduces cross-origin cookie blocking, complex CORS configuration, pre-flight `OPTIONS` request latency, dual build tracking, and confusing dual-URL setups for users and graders.
-   - *Decision*: We unified the entire full-stack system into a single production service on Render:
-     - The root `package.json` coordinates building the React SPA into `client/build` and installing server dependencies.
-     - Express serves the production React build statically on the root URL while handling API routes and WebSocket gateway connections on the exact same host.
-     - Result: **Zero CORS latency, single deployment pipeline, simplified environment variables, and one unified URL for users.**
+### 6. Unified Single-Service Deployment
+- **Problem**: Split frontend/backend deployments cause CORS issues, dual domains, cookie blocking.
+- **Solution**: Express serves React static files + API + WebSocket on same origin.
+- **Result**: Zero CORS, single deployment, one unified URL.
 
 ---
 
-## Screenshots & Video Demo: Assistant Controlling the UI
+## Screenshots & Demo
 
-### Dashboard Overview & Glassmorphic Interface
-The main dashboard features frosted glassmorphism, gradient identity avatars, unread badges, and an integrated AI Assistant panel:
+### Dashboard Overview
+Glassmorphic UI with gradient avatars, unread badges, and integrated AI Assistant panel:
 
 ![Dashboard Overview](docs/screenshots/dashboard-overview.png)
 
-### AI Assistant Driving the UI Programmatically
-The assistant executes actions directly on the user's behalf — populating form fields, filtering messages, and rendering interactive action cards:
+### AI Assistant in Action
+Programmatically controlling the UI — filling forms, filtering emails, and rendering action cards:
 
 ![AI Assistant Controlling UI](docs/screenshots/ai-copilot-controls-ui.png)
 
-### Walkthrough of Core AI Workflows
+### Live Demo Video
+[![AI Mail App Demo](docs/screenshots/dashboard-overview.png)](docs/Deployed%20live%20demo.mp4)
 
-| Step | User Command | AI Action & UI Response |
-| :---: | :--- | :--- |
-| **1** | *"Send an email to alex@techcorp.io with subject 'Q4 Roadmap Sync' and body 'Let's connect at 3 PM today'"* | **Paints & Fills Compose Form**: Visibly launches the Compose modal with recipient, subject, and body pre-filled, presenting an interactive `[ Send Now ]` confirmation card. |
-| **2** | *"Show unread emails from last week"* | **Filters Main Inbox UI**: Automatically toggles the unread filter and date range, instantly filtering the conversation list in the main viewport. |
-| **3** | *"Open the latest email from Sarah"* | **Navigates Views**: Programmatically transitions the route to `/email/:id` and renders the full email conversation and thread timeline. |
-| **4** | *"Reply to this"* *(while reading an email)* | **Context-Aware Reply Pre-fill**: Inspects `activeEmail` from the current view, populates recipient (`sarah.c@designsystems.dev`), sets subject (`Re: Design Review`), drafts a tailored response, and opens the editor. |
-| **5** | *Incoming Message Detection* | **Real-Time Push**: Automatically receives new incoming messages via Socket.IO and prepends them to the inbox with a toast notification — no manual refresh needed. |
+*Click the thumbnail above to watch the full walkthrough*
+
+### Core AI Workflows
+
+| Command | AI Action |
+|:--------|:----------|
+| *"Send email to alex@techcorp.io subject 'Q4 Roadmap Sync' body 'Let's connect at 3 PM'"* | Opens compose modal → pre-fills recipient, subject, body → shows `[Send Now]` button |
+| *"Show unread emails from last week"* | Toggles unread filter + date range → instantly filters inbox |
+| *"Open latest email from Sarah"* | Navigates to `/email/:id` → renders full conversation |
+| *"Reply to this"* (while reading) | Detects `activeEmail` → auto-fills recipient + `Re:` subject → drafts tailored response |
+| *(Incoming email)* | Socket.IO pushes new email → prepends to inbox + toast notification |
 
 ---
 
-## What You’d Improve With More Time
+## Future Improvements
 
-1. **Google Cloud Pub/Sub Webhook Integration**:
-   Configure production Google Cloud Pub/Sub push endpoints with Gmail watch topic subscriptions for instant, sub-second inbox webhook delivery without polling.
-
-2. **Offline-First Storage with IndexedDB**:
-   Integrate Dexie.js / IndexedDB to cache drafts, offline outbox queues, and conversation threads locally, allowing full email composing and reading during network disconnects.
-
-3. **Multi-Account Unified Inbox**:
-   Support simultaneous authentication for multiple Google accounts and Microsoft Outlook accounts in a unified, switchable inbox feed.
-
-4. **Rich WYSIWYG Editor with Attachments**:
-   Upgrade the plain-text compose modal to a rich text editor (e.g. TipTap or Lexical) with markdown shortcuts, inline image embedding, and drag-and-drop file attachments via Gmail MIME multipart APIs.
-
-5. **Voice-Driven Dictation & Commands**:
-   Incorporate the Web Speech Recognition API so users can dictate emails and issue hands-free voice commands directly to the AI Assistant.
+| Area | Enhancement |
+|:-----|:------------|
+| **Instant Delivery** | Replace polling with Google Cloud Pub/Sub webhooks |
+| **Offline Support** | Cache drafts & emails locally using IndexedDB |
+| **Multi-Account** | Support multiple Google + Outlook accounts in unified inbox |
+| **Rich Composer** | Upgrade to TipTap/Lexical with markdown, images, attachments |
+| **Voice Control** | Web Speech API for dictation & hands-free commands |
