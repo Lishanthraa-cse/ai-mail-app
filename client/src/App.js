@@ -55,6 +55,8 @@ function AppContent({
       <Sidebar 
         onCompose={() => openCompose()}
         onLogout={onLogout}
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
       />
       
       <div className="app-main">
@@ -68,8 +70,15 @@ function AppContent({
         <div className="app-content">
           <div className="app-inbox glass">
             <Routes>
-              <Route path="/inbox" element={<InboxList onEmailSelect={setSelectedEmail} />} />
-              <Route path="/sent" element={<InboxList sent={true} onEmailSelect={setSelectedEmail} />} />
+              <Route path="/inbox" element={<InboxList folder="inbox" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/starred" element={<InboxList folder="starred" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/sent" element={<InboxList folder="sent" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/drafts" element={<InboxList folder="drafts" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/all" element={<InboxList folder="all" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/important" element={<InboxList folder="important" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/trash" element={<InboxList folder="trash" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/spam" element={<InboxList folder="spam" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/category/:category" element={<InboxList onEmailSelect={setSelectedEmail} />} />
               <Route path="/email/:id" element={<EmailDetail />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<PrivacyPolicy />} />

@@ -52,6 +52,53 @@ export const fetchSent = () =>
     .then(res => res.data)
     .catch(() => []);
 
+export const fetchFolder = (folder = 'inbox') => {
+  const f = folder.toLowerCase();
+  return api.get(`/emails/folder/${f}`)
+    .then(res => (res.data && Array.isArray(res.data) ? res.data : []))
+    .catch(() => {
+      if (f === 'sent') return [];
+      if (f === 'starred') return SAMPLE_EMAILS.filter(e => e.isStarred || e.labels?.includes('STARRED'));
+      if (f === 'important') return SAMPLE_EMAILS.filter(e => e.labels?.includes('IMPORTANT'));
+      if (f === 'trash' || f === 'spam') return [];
+      if (f === 'drafts') return [];
+      if (['updates', 'social', 'promotions'].includes(f)) {
+        return SAMPLE_EMAILS.filter(e => e.labels?.some(l => l.toLowerCase() === f));
+      }
+      return SAMPLE_EMAILS;
+    });
+};
+
+export const toggleStar = (id) =>
+  api.post(`/emails/${id}/star`).then(res => res.data);
+
+export const toggleRead = (id, isRead) =>
+  api.post(`/emails/${id}/read`, { isRead }).then(res => res.data);
+
+export const moveToTrash = (id, restore = false) =>
+  api.post(`/emails/${id}/trash`, { restore }).then(res => res.data);
+
+export const emptyTrash = () =>
+  api.delete('/emails/trash/empty').then(res => res.data);
+
+export const moveToSpam = (id, restore = false) =>
+  api.post(`/emails/${id}/spam`, { restore }).then(res => res.data);
+
+export const fetchDrafts = () =>
+  api.get('/drafts').then(res => res.data).catch(() => []);
+
+export const saveDraft = (draft) =>
+  api.post('/drafts', draft).then(res => res.data);
+
+export const deleteDraft = (id) =>
+  api.delete(`/drafts/${id}`).then(res => res.data);
+
+export const updateProfile = (data) =>
+  api.put('/auth/profile', data).then(res => res.data);
+
+export const getMe = () =>
+  api.get('/auth/me').then(res => res.data?.user).catch(() => null);
+
 export const fetchEmail = (id) => 
   api.get(`/emails/${id}`)
     .then(res => res.data)

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   StarIcon as StarOutline, 
   TrashIcon, 
   EnvelopeIcon, 
   EnvelopeOpenIcon,
-  PaperClipIcon
+  PaperClipIcon,
+  ArrowUturnLeftIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 
@@ -43,11 +44,20 @@ const getCategoryTag = (subject = '', snippet = '') => {
   return null;
 };
 
-const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected = false }) => {
-  const [isStarred, setIsStarred] = useState(email.isStarred || email.labels?.includes('STARRED') || false);
-  const [isRead, setIsRead] = useState(email.isRead ?? true);
+const EmailItem = ({ 
+  email, 
+  onClick, 
+  onStar, 
+  onDelete, 
+  onToggleRead, 
+  onRestore, 
+  folder = 'inbox', 
+  isSelected = false 
+}) => {
+  const isStarred = Boolean(email.isStarred || email.labels?.includes('STARRED'));
+  const isRead = Boolean(email.isRead ?? true);
 
-  const senderName = email.from?.name || email.from?.email || 'Unknown';
+  const senderName = email.from?.name || email.from?.email || (email.to?.[0]?.email ? `To: ${email.to[0].email}` : 'Draft');
   const senderEmail = email.from?.email || '';
   const initial = senderName.charAt(0).toUpperCase() || '?';
   const gradient = getGradientForString(senderEmail || senderName);
@@ -72,19 +82,22 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
 
   const handleStarClick = (e) => {
     e.stopPropagation();
-    setIsStarred(!isStarred);
-    if (onStar) onStar(email, !isStarred);
+    if (onStar) onStar(email);
   };
 
   const handleToggleRead = (e) => {
     e.stopPropagation();
-    setIsRead(!isRead);
     if (onToggleRead) onToggleRead(email, !isRead);
   };
 
   const handleDeleteClick = (e) => {
     e.stopPropagation();
     if (onDelete) onDelete(email);
+  };
+
+  const handleRestoreClick = (e) => {
+    e.stopPropagation();
+    if (onRestore) onRestore(email);
   };
 
   return (
@@ -123,6 +136,11 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
               <span className={`text-sm truncate ${!isRead ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
                 {senderName}
               </span>
+              {email.isDraft && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                  Draft
+                </span>
+              )}
               {category && (
                 <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${category.color}`}>
                   {category.label}
@@ -135,7 +153,7 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
                 <PaperClipIcon width={14} height={14} style={{ width: '0.875rem', height: '0.875rem' }} className="w-3.5 h-3.5 text-slate-400" />
               )}
               <span className={`text-xs ${!isRead ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
-                {formatDate(email.date)}
+                {formatDate(email.date || email.updatedAt)}
               </span>
             </div>
           </div>
@@ -158,17 +176,27 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
 
         {/* Quick Hover Action Bar */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-2 py-1 rounded-xl shadow-lg border border-slate-200/80 dark:border-slate-700">
-          <button
-            onClick={handleStarClick}
-            title={isStarred ? 'Unstar' : 'Star'}
-            className="p-1.5 text-slate-400 hover:text-amber-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            {isStarred ? (
-              <StarSolid width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-amber-500" />
-            ) : (
-              <StarOutline width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
-            )}
-          </button>
+          {folder === 'trash' ? (
+            <button
+              onClick={handleRestoreClick}
+              title="Restore to Inbox"
+              className="p-1.5 text-slate-400 hover:text-emerald-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <ArrowUturnLeftIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={handleStarClick}
+              title={isStarred ? 'Unstar' : 'Star'}
+              className="p-1.5 text-slate-400 hover:text-amber-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              {isStarred ? (
+                <StarSolid width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-amber-500" />
+              ) : (
+                <StarOutline width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+              )}
+            </button>
+          )}
 
           <button
             onClick={handleToggleRead}
@@ -185,7 +213,7 @@ const EmailItem = ({ email, onClick, onStar, onDelete, onToggleRead, isSelected 
           {onDelete && (
             <button
               onClick={handleDeleteClick}
-              title="Delete"
+              title={folder === 'trash' ? 'Delete Permanently' : 'Move to Trash'}
               className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
               <TrashIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />

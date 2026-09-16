@@ -103,11 +103,25 @@ const emailSchema = new mongoose.Schema({
   snippet: String,
   date: Date,
   isRead: { type: Boolean, default: false },
+  isStarred: { type: Boolean, default: false },
+  isTrash: { type: Boolean, default: false },
+  isSpam: { type: Boolean, default: false },
   labels: [String],
   category: String,
 }, { timestamps: true });
 
 const Email = mongoose.model('Email', emailSchema);
+
+// Draft Schema
+const draftSchema = new mongoose.Schema({
+  userId: String,
+  to: String,
+  subject: String,
+  body: String,
+  updatedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+const Draft = mongoose.model('Draft', draftSchema);
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -115,6 +129,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, unique: true },
   name: String,
   picture: String,
+  signature: { type: String, default: '' },
   accessToken: String,
   refreshToken: String,
   createdAt: {
@@ -253,6 +268,15 @@ app.get('/api/auth/google/callback', passport.authenticate('google', {
 // Demo preview sample emails (50 realistic conversations) isolated from user database
 const { DEMO_EMAILS } = require('./demoData');
 const demoSentEmails = [];
+const demoStarredIds = new Set();
+const demoTrashIds = new Set();
+const demoSpamIds = new Set();
+const demoDrafts = [];
+let demoUserProfile = {
+  name: 'Demo User',
+  email: 'demo.user@aimail.com',
+  signature: '--\nBest regards,\nDemo User'
+};
 
 app.get('/api/auth/me', async (req, res) => {
   try {
@@ -262,7 +286,8 @@ app.get('/api/auth/me', async (req, res) => {
           id: req.user.id,
           email: req.user.email,
           name: req.user.name,
-          picture: req.user.picture
+          picture: req.user.picture,
+          signature: req.user.signature || ''
         }
       });
     } else {
@@ -272,9 +297,10 @@ app.get('/api/auth/me', async (req, res) => {
           return res.json({
             user: {
               id: 'demo-user-id',
-              email: 'demo.user@aimail.com',
-              name: 'Demo User',
-              picture: null
+              email: demoUserProfile.email,
+              name: demoUserProfile.name,
+              picture: null,
+              signature: demoUserProfile.signature
             }
           });
         }
@@ -348,7 +374,13 @@ const authenticateToken = async (req, res, next) => {
 app.get('/api/emails/inbox', authenticateToken, async (req, res) => {
   try {
     if (req.user?.isDemo) {
-      return res.json(DEMO_EMAILS);
+      const filtered = DEMO_EMAILS
+        .filter(e => !demoTrashIds.has(e.emailId) && !demoSpamIds.has(e.emailId))
+        .map(e => ({
+          ...e,
+          isStarred: demoStarredIds.has(e.emailId) || e.isStarred || e.labels?.includes('STARRED')
+        }));
+      return res.json(filtered);
     }
 
     const now = Date.now();
@@ -550,6 +582,495 @@ app.get('/api/emails/sent', authenticateToken, async (req, res) => {
     } catch (e) {
       res.status(500).json({ error: error.message });
     }
+  }
+});
+
+// Generic Folder view (supports: inbox, starred, sent, drafts, all, important, trash, spam, updates, social, promotions, etc.)
+app.get('/api/emails/folder/:folder', authenticateToken, async (req, res) => {
+  try {
+    const rawFolder = req.params.folder.toLowerCase();
+
+    // DEMO USER MODE
+    if (req.user?.isDemo) {
+      const allActive = DEMO_EMAILS
+        .filter(e => !demoTrashIds.has(e.emailId) && !demoSpamIds.has(e.emailId))
+        .map(e => ({
+          ...e,
+          isStarred: demoStarredIds.has(e.emailId) || e.isStarred || e.labels?.includes('STARRED')
+        }));
+
+      if (rawFolder === 'inbox') {
+        return res.json(allActive);
+      }
+      if (rawFolder === 'starred') {
+        const starred = allActive.filter(e => e.isStarred);
+        return res.json(starred);
+      }
+      if (rawFolder === 'sent') {
+        return res.json(demoSentEmails);
+      }
+      if (rawFolder === 'drafts') {
+        return res.json(demoDrafts);
+      }
+      if (rawFolder === 'all') {
+        return res.json([...allActive, ...demoSentEmails]);
+      }
+      if (rawFolder === 'important') {
+        const important = allActive.filter(e => e.labels?.includes('IMPORTANT') || e.isImportant);
+        return res.json(important);
+      }
+      if (rawFolder === 'trash') {
+        const trash = DEMO_EMAILS.filter(e => demoTrashIds.has(e.emailId)).map(e => ({
+          ...e,
+          isStarred: demoStarredIds.has(e.emailId) || e.isStarred
+        }));
+        return res.json(trash);
+      }
+      if (rawFolder === 'spam') {
+        const spam = DEMO_EMAILS.filter(e => demoSpamIds.has(e.emailId));
+        return res.json(spam);
+      }
+      // Category views (e.g. updates, social, promotions, finance)
+      const catMatches = allActive.filter(e => 
+        (e.labels && e.labels.some(l => l.toLowerCase() === rawFolder)) ||
+        (e.category && e.category.toLowerCase() === rawFolder)
+      );
+      return res.json(catMatches);
+    }
+
+    // LIVE GMAIL MODE
+    let query = '';
+    let mongoQuery = {};
+
+    switch (rawFolder) {
+      case 'inbox':
+        query = 'in:inbox';
+        mongoQuery = { labels: 'INBOX', isTrash: { $ne: true }, isSpam: { $ne: true } };
+        break;
+      case 'starred':
+        query = 'is:starred';
+        mongoQuery = { isStarred: true, isTrash: { $ne: true } };
+        break;
+      case 'sent':
+        query = 'in:sent';
+        mongoQuery = { labels: 'SENT' };
+        break;
+      case 'drafts':
+        const drafts = await Draft.find({ userId: req.user.id }).sort({ updatedAt: -1 });
+        return res.json(drafts);
+      case 'all':
+        query = '';
+        mongoQuery = { isTrash: { $ne: true }, isSpam: { $ne: true } };
+        break;
+      case 'important':
+        query = 'is:important';
+        mongoQuery = { labels: 'IMPORTANT', isTrash: { $ne: true } };
+        break;
+      case 'trash':
+        query = 'in:trash';
+        mongoQuery = { $or: [{ isTrash: true }, { labels: 'TRASH' }] };
+        break;
+      case 'spam':
+        query = 'in:spam';
+        mongoQuery = { $or: [{ isSpam: true }, { labels: 'SPAM' }] };
+        break;
+      default:
+        query = `category:${rawFolder}`;
+        mongoQuery = { labels: rawFolder.toUpperCase(), isTrash: { $ne: true } };
+        break;
+    }
+
+    const now = Date.now();
+    if (now < quotaCooldownUntil) {
+      const cached = await Email.find(mongoQuery).sort({ date: -1 }).limit(50);
+      return res.json(cached);
+    }
+
+    try {
+      const gmail = await getGmailClient(req.user);
+      const fetchLimit = Math.max(30, parseInt(req.query.limit) || 35);
+      const listParams = { userId: 'me', maxResults: fetchLimit };
+      if (query) listParams.q = query;
+
+      const response = await gmail.users.messages.list(listParams);
+      const emails = [];
+
+      if (response.data.messages) {
+        for (const message of response.data.messages) {
+          let emailData = await Email.findOne({ emailId: message.id });
+          if (emailData) {
+            emails.push(emailData);
+            continue;
+          }
+
+          try {
+            const msg = await gmail.users.messages.get({
+              userId: 'me',
+              id: message.id,
+              format: 'full'
+            });
+
+            const headers = msg.data.payload.headers;
+            const getHeader = (name) => {
+              const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+              return header ? header.value : '';
+            };
+
+            let body = '';
+            if (msg.data.payload.parts) {
+              const textPart = msg.data.payload.parts.find(part =>
+                part.mimeType === 'text/plain' || part.mimeType === 'text/html'
+              );
+              if (textPart && textPart.body.data) {
+                body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+              }
+            } else if (msg.data.payload.body && msg.data.payload.body.data) {
+              body = Buffer.from(msg.data.payload.body.data, 'base64').toString('utf-8');
+            }
+
+            const labelIds = msg.data.labelIds || [];
+            emailData = {
+              emailId: msg.data.id,
+              threadId: msg.data.threadId,
+              from: parseEmailAddress(getHeader('from')),
+              to: parseEmailAddresses(getHeader('to')),
+              subject: getHeader('subject') || '(No subject)',
+              body: body || msg.data.snippet,
+              snippet: msg.data.snippet,
+              date: new Date(getHeader('date') || Date.now()),
+              isRead: !labelIds.includes('UNREAD'),
+              isStarred: labelIds.includes('STARRED'),
+              isTrash: labelIds.includes('TRASH'),
+              isSpam: labelIds.includes('SPAM'),
+              labels: labelIds
+            };
+
+            await Email.findOneAndUpdate(
+              { emailId: msg.data.id },
+              emailData,
+              { upsert: true }
+            );
+
+            emails.push(emailData);
+          } catch (mErr) {
+            // ignore individual message error
+          }
+        }
+      }
+      return res.json(emails);
+    } catch (apiErr) {
+      console.error(`Error fetching folder ${rawFolder}:`, apiErr.message);
+      if (apiErr.message?.includes('Quota') || apiErr.message?.includes('limit') || apiErr.code === 429) {
+        quotaCooldownUntil = Date.now() + 120000;
+      }
+      const cached = await Email.find(mongoQuery).sort({ date: -1 }).limit(50);
+      return res.json(cached);
+    }
+  } catch (error) {
+    console.error('Folder route error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Star/Unstar email
+app.post('/api/emails/:id/star', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user?.isDemo) {
+      const isStarred = demoStarredIds.has(id);
+      if (isStarred) {
+        demoStarredIds.delete(id);
+      } else {
+        demoStarredIds.add(id);
+      }
+      return res.json({ success: true, isStarred: !isStarred });
+    }
+
+    const email = await Email.findOne({ emailId: id });
+    const nextStarred = email ? !email.isStarred : true;
+
+    try {
+      const gmail = await getGmailClient(req.user);
+      await gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: nextStarred
+          ? { addLabelIds: ['STARRED'] }
+          : { removeLabelIds: ['STARRED'] }
+      });
+    } catch (e) {
+      console.warn('Gmail modify label error:', e.message);
+    }
+
+    if (email) {
+      email.isStarred = nextStarred;
+      if (nextStarred && !email.labels.includes('STARRED')) email.labels.push('STARRED');
+      if (!nextStarred) email.labels = email.labels.filter(l => l !== 'STARRED');
+      await email.save();
+    }
+
+    res.json({ success: true, isStarred: nextStarred });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Move to / restore from Trash
+app.post('/api/emails/:id/trash', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const restore = Boolean(req.body?.restore);
+
+    if (req.user?.isDemo) {
+      if (restore) {
+        demoTrashIds.delete(id);
+      } else {
+        demoTrashIds.add(id);
+      }
+      return res.json({ success: true, isTrash: !restore });
+    }
+
+    try {
+      const gmail = await getGmailClient(req.user);
+      if (restore) {
+        await gmail.users.messages.untrash({ userId: 'me', id });
+      } else {
+        await gmail.users.messages.trash({ userId: 'me', id });
+      }
+    } catch (e) {
+      console.warn('Gmail trash error:', e.message);
+    }
+
+    const email = await Email.findOne({ emailId: id });
+    if (email) {
+      email.isTrash = !restore;
+      if (!restore) {
+        if (!email.labels.includes('TRASH')) email.labels.push('TRASH');
+        email.labels = email.labels.filter(l => l !== 'INBOX');
+      } else {
+        email.labels = email.labels.filter(l => l !== 'TRASH');
+        if (!email.labels.includes('INBOX')) email.labels.push('INBOX');
+      }
+      await email.save();
+    }
+
+    res.json({ success: true, isTrash: !restore });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark as Read / Unread
+app.post('/api/emails/:id/read', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const isRead = req.body?.isRead !== undefined ? Boolean(req.body.isRead) : true;
+
+    if (req.user?.isDemo) {
+      const found = DEMO_EMAILS.find(e => e.emailId === id);
+      if (found) found.isRead = isRead;
+      return res.json({ success: true, isRead });
+    }
+
+    try {
+      const gmail = await getGmailClient(req.user);
+      await gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: isRead
+          ? { removeLabelIds: ['UNREAD'] }
+          : { addLabelIds: ['UNREAD'] }
+      });
+    } catch (e) {
+      console.warn('Gmail mark read/unread error:', e.message);
+    }
+
+    const email = await Email.findOne({ emailId: id });
+    if (email) {
+      email.isRead = isRead;
+      await email.save();
+    }
+
+    res.json({ success: true, isRead });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Move to / restore from Spam
+app.post('/api/emails/:id/spam', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const restore = Boolean(req.body?.restore);
+
+    if (req.user?.isDemo) {
+      if (restore) {
+        demoSpamIds.delete(id);
+      } else {
+        demoSpamIds.add(id);
+      }
+      return res.json({ success: true, isSpam: !restore });
+    }
+
+    try {
+      const gmail = await getGmailClient(req.user);
+      await gmail.users.messages.modify({
+        userId: 'me',
+        id,
+        requestBody: !restore
+          ? { addLabelIds: ['SPAM'], removeLabelIds: ['INBOX'] }
+          : { removeLabelIds: ['SPAM'], addLabelIds: ['INBOX'] }
+      });
+    } catch (e) {
+      console.warn('Gmail spam modify error:', e.message);
+    }
+
+    const email = await Email.findOne({ emailId: id });
+    if (email) {
+      email.isSpam = !restore;
+      if (!restore) {
+        if (!email.labels.includes('SPAM')) email.labels.push('SPAM');
+        email.labels = email.labels.filter(l => l !== 'INBOX');
+      } else {
+        email.labels = email.labels.filter(l => l !== 'SPAM');
+        if (!email.labels.includes('INBOX')) email.labels.push('INBOX');
+      }
+      await email.save();
+    }
+
+    res.json({ success: true, isSpam: !restore });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Empty Trash
+app.delete('/api/emails/trash/empty', authenticateToken, async (req, res) => {
+  try {
+    if (req.user?.isDemo) {
+      demoTrashIds.clear();
+      return res.json({ success: true, message: 'Trash emptied' });
+    }
+
+    await Email.deleteMany({ $or: [{ isTrash: true }, { labels: 'TRASH' }] });
+    res.json({ success: true, message: 'Trash emptied' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Drafts Endpoints
+app.get('/api/drafts', authenticateToken, async (req, res) => {
+  try {
+    if (req.user?.isDemo) {
+      return res.json(demoDrafts);
+    }
+    const drafts = await Draft.find({ userId: req.user.id }).sort({ updatedAt: -1 });
+    res.json(drafts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/drafts', authenticateToken, async (req, res) => {
+  try {
+    const { id, to, subject, body } = req.body;
+    if (req.user?.isDemo) {
+      const draftIndex = demoDrafts.findIndex(d => d._id === id || d.emailId === id);
+      const draftObj = {
+        _id: id || `draft-${Date.now()}`,
+        emailId: id || `draft-${Date.now()}`,
+        to: [{ email: to, name: to }],
+        subject: subject || '(Draft - No subject)',
+        body: body || '',
+        snippet: (body || '').substring(0, 100),
+        date: new Date().toISOString(),
+        isDraft: true
+      };
+      if (draftIndex >= 0) {
+        demoDrafts[draftIndex] = draftObj;
+      } else {
+        demoDrafts.unshift(draftObj);
+      }
+      return res.json(draftObj);
+    }
+
+    let draft;
+    if (id) {
+      draft = await Draft.findOneAndUpdate(
+        { _id: id, userId: req.user.id },
+        { to, subject, body, updatedAt: new Date() },
+        { new: true, upsert: true }
+      );
+    } else {
+      draft = new Draft({
+        userId: req.user.id,
+        to,
+        subject,
+        body
+      });
+      await draft.save();
+    }
+    res.json(draft);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/drafts/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (req.user?.isDemo) {
+      const index = demoDrafts.findIndex(d => d._id === id || d.emailId === id);
+      if (index >= 0) demoDrafts.splice(index, 1);
+      return res.json({ success: true });
+    }
+
+    await Draft.findOneAndDelete({ _id: id, userId: req.user.id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Profile & Preferences Endpoint
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, signature } = req.body;
+    if (req.user?.isDemo) {
+      if (name) demoUserProfile.name = name;
+      if (signature !== undefined) demoUserProfile.signature = signature;
+      return res.json({
+        user: {
+          id: 'demo-user-id',
+          email: demoUserProfile.email,
+          name: demoUserProfile.name,
+          picture: null,
+          signature: demoUserProfile.signature
+        }
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { 
+        ...(name ? { name } : {}),
+        ...(signature !== undefined ? { signature } : {})
+      },
+      { new: true }
+    );
+
+    res.json({
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        picture: updatedUser.picture,
+        signature: updatedUser.signature || ''
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

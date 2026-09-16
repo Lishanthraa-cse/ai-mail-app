@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, SparklesIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { sendEmail, processAICommand } from '../../services/api';
+import { useEmailContext } from '../../context/EmailContext';
 import toast from 'react-hot-toast';
 
 const EmailCompose = ({ onClose, initialTo = '', initialSubject = '', initialBody = '' }) => {
+  const { saveDraft, composeData } = useEmailContext();
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(initialBody);
   const [sending, setSending] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
@@ -78,6 +81,28 @@ const EmailCompose = ({ onClose, initialTo = '', initialSubject = '', initialBod
     }
   };
 
+  const handleSaveDraft = async () => {
+    if (!to && !subject && !body) {
+      toast.error('Draft is empty');
+      return;
+    }
+    setIsSavingDraft(true);
+    try {
+      await saveDraft({
+        id: composeData?.draftId,
+        to,
+        subject,
+        body
+      });
+      toast.success('Draft saved successfully');
+      onClose();
+    } catch (e) {
+      toast.error('Failed to save draft');
+    } finally {
+      setIsSavingDraft(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
       <div className="glass w-full max-w-2xl rounded-3xl shadow-2xl border border-white/60 dark:border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
@@ -88,7 +113,7 @@ const EmailCompose = ({ onClose, initialTo = '', initialSubject = '', initialBod
               <PaperAirplaneIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 -rotate-45" />
             </div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
-              New Message
+              {composeData?.draftId ? 'Edit Draft' : 'New Message'}
             </h2>
           </div>
           <button
@@ -189,12 +214,23 @@ const EmailCompose = ({ onClose, initialTo = '', initialSubject = '', initialBod
 
         {/* Modal Footer */}
         <div className="px-6 py-4 border-t border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between bg-white/40 dark:bg-slate-900/40">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/60 rounded-xl transition-colors"
-          >
-            Cancel
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/60 rounded-xl transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={isSavingDraft}
+              className="px-3.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 rounded-xl border border-indigo-200/60 dark:border-indigo-800/60 transition-colors disabled:opacity-50"
+            >
+              {isSavingDraft ? 'Saving...' : 'Save Draft'}
+            </button>
+          </div>
           <button
             onClick={handleSend}
             disabled={sending}

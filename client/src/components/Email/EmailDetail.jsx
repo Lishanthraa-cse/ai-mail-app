@@ -4,7 +4,7 @@ import { fetchEmail, fetchThread, sendEmail } from '../../services/api';
 import { useEmailContext } from '../../context/EmailContext';
 import { 
   ArrowLeftIcon, 
-  StarIcon, 
+  StarIcon as StarOutline, 
   TrashIcon, 
   ArrowUturnLeftIcon, 
   PaperAirplaneIcon,
@@ -12,8 +12,11 @@ import {
   CheckBadgeIcon,
   ChatBubbleLeftRightIcon,
   ChevronDownIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
+  EnvelopeIcon,
+  ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
+import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 
 const AVATAR_GRADIENTS = [
@@ -36,7 +39,7 @@ const getGradientForString = (str = '') => {
 const EmailDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { setActiveEmail } = useEmailContext();
+  const { setActiveEmail, toggleStar, toggleRead, moveToTrash, moveToSpam } = useEmailContext();
   const [email, setEmail] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
   const [expandedThreads, setExpandedThreads] = useState({});
@@ -44,6 +47,39 @@ const EmailDetail = () => {
   const [replyBody, setReplyBody] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
+
+  const isStarred = Boolean(email?.isStarred || email?.labels?.includes('STARRED'));
+
+  const handleToggleStar = () => {
+    if (!email) return;
+    toggleStar(email);
+    setEmail(prev => ({
+      ...prev,
+      isStarred: !isStarred
+    }));
+    toast.success(!isStarred ? 'Starred' : 'Unstarred');
+  };
+
+  const handleDelete = () => {
+    if (!email) return;
+    moveToTrash(email, false);
+    toast.success('Moved to Trash');
+    navigate('/inbox');
+  };
+
+  const handleMarkUnread = () => {
+    if (!email) return;
+    toggleRead(email, false);
+    toast.success('Marked as unread');
+    navigate('/inbox');
+  };
+
+  const handleSpam = () => {
+    if (!email) return;
+    moveToSpam(email, false);
+    toast.success('Moved to Spam');
+    navigate('/inbox');
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -181,13 +217,33 @@ const EmailDetail = () => {
             <ArrowUturnLeftIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
           </button>
           <button
-            title="Star"
+            onClick={handleToggleStar}
+            title={isStarred ? 'Unstar' : 'Star'}
             className="p-2 text-slate-500 hover:text-amber-500 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
           >
-            <StarIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+            {isStarred ? (
+              <StarSolid width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-amber-500" />
+            ) : (
+              <StarOutline width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+            )}
           </button>
           <button
-            title="Delete"
+            onClick={handleMarkUnread}
+            title="Mark as unread"
+            className="p-2 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
+          >
+            <EnvelopeIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleSpam}
+            title="Report Spam"
+            className="p-2 text-slate-500 hover:text-orange-500 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
+          >
+            <ShieldExclamationIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleDelete}
+            title="Move to Trash"
             className="p-2 text-slate-500 hover:text-rose-500 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
           >
             <TrashIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
