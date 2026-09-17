@@ -13,7 +13,12 @@ import {
   deleteDraft, 
   updateProfile, 
   getMe, 
-  searchEmails 
+  searchEmails,
+  semanticSearchEmails,
+  fetchReminders,
+  createReminder,
+  completeReminder,
+  deleteReminder
 } from '../services/api';
 import { getSocket, initializeSocket } from '../services/socket';
 
@@ -29,6 +34,10 @@ export const EmailProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [drafts, setDrafts] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [reminderModalEmail, setReminderModalEmail] = useState(null);
+  const [semanticCriteria, setSemanticCriteria] = useState(null);
+  const [dueNotification, setDueNotification] = useState(null);
   
   // User profile & preferences state
   const [userProfile, setUserProfile] = useState(() => {
@@ -118,7 +127,27 @@ export const EmailProvider = ({ children }) => {
       } else {
         data = await fetchFolder(type);
       }
-      setEmails(data || []);
+
+      // Sync reminders and enrich emails
+      let currentRems = [];
+      try {
+        currentRems = await fetchReminders();
+        setReminders(currentRems || []);
+      } catch (e) {}
+
+      const remMap = new Map();
+      (currentRems || []).forEach(r => {
+        if (!r.isCompleted) {
+          remMap.set(r.emailId, { ...r, isDue: new Date(r.dueDate) <= new Date() });
+        }
+      });
+
+      const enriched = (data || []).map(e => ({
+        ...e,
+        reminder: e.reminder || remMap.get(e.emailId || e._id)
+      }));
+
+      setEmails(enriched);
     } catch (err) {
       if (showLoading) {
         setError(err.message || 'Failed to load emails');
@@ -267,6 +296,128 @@ export const EmailProvider = ({ children }) => {
     }
   };
 
+  // Reminders Actions
+  const openReminderModal = (email) => {
+    setReminderModalEmail(email);
+  };
+
+  const closeReminderModal = () => {
+    setReminderModalEmail(null);
+  };
+
+  const createReminderAction = async (data) => {
+    try {
+      const saved = await createReminder(data);
+      setReminders(prev => {
+        const filtered = prev.filter(r => r.emailId !== data.emailId);
+        return [saved, ...filtered];
+      });
+      // Attach reminder to email in state
+      setEmails(prev => prev.map(e => {
+        const id = e.emailId || e._id;
+        if (id === data.emailId) {
+          return {
+            ...e,
+            reminder: {
+              ...saved,
+              isDue: new Date(saved.dueDate) <= new Date()
+            }
+          };
+        }
+        return e;
+      }));
+      return saved;
+    } catch (e) {
+      console.error('Failed to create reminder:', e);
+      throw e;
+    }
+  };
+
+  const completeReminderAction = async (id, emailId) => {
+    try {
+      await completeReminder(id || emailId);
+      setReminders(prev => prev.map(r => (r._id === id || r.id === id || r.emailId === emailId) ? { ...r, isCompleted: true, isDue: false } : r));
+      setEmails(prev => prev.map(e => {
+        const match = (e.emailId && e.emailId === emailId) || (e._id && e._id === emailId);
+        if (match && e.reminder) {
+          return { ...e, reminder: { ...e.reminder, isCompleted: true, isDue: false } };
+        }
+        return e;
+      }));
+    } catch (e) {
+      console.error('Failed to complete reminder:', e);
+    }
+  };
+
+  const deleteReminderAction = async (id, emailId) => {
+    try {
+      await deleteReminder(id || emailId);
+      setReminders(prev => prev.filter(r => r._id !== id && r.id !== id && r.emailId !== emailId));
+      setEmails(prev => prev.map(e => {
+        const match = (e.emailId && e.emailId === emailId) || (e._id && e._id === emailId);
+        if (match) {
+          const clone = { ...e };
+          delete clone.reminder;
+          return clone;
+        }
+        return e;
+      }));
+    } catch (e) {
+      console.error('Failed to delete reminder:', e);
+    }
+  };
+
+  // Semantic Natural-Language Search
+  const runSemanticSearch = async (query) => {
+    if (!query || !query.trim()) {
+      clearSemanticSearch();
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await semanticSearchEmails(query);
+      setSemanticCriteria(res.criteria);
+      setEmails(res.emails || []);
+    } catch (err) {
+      setError(err.message || 'Semantic search failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearSemanticSearch = () => {
+    setSemanticCriteria(null);
+    loadEmails(currentTypeRef.current);
+  };
+
+  const dismissDueNotification = () => {
+    setDueNotification(null);
+  };
+
+  // Check for due reminders periodically
+  useEffect(() => {
+    const checkReminders = () => {
+      const due = reminders.filter(r => !r.isCompleted && new Date(r.dueDate) <= new Date());
+      if (due.length > 0) {
+        const latest = due[0];
+        setDueNotification({
+          id: latest._id || latest.id || latest.emailId,
+          emailId: latest.emailId,
+          subject: latest.subject,
+          notes: latest.notes,
+          dueDate: latest.dueDate
+        });
+      }
+    };
+
+    checkReminders();
+    const timer = setInterval(checkReminders, 20000);
+    return () => clearInterval(timer);
+  }, [reminders]);
+
+  const dueRemindersCount = reminders.filter(r => !r.isCompleted && new Date(r.dueDate) <= new Date()).length;
+
   useEffect(() => {
     // Initialize socket connection
     initializeSocket();
@@ -335,7 +486,22 @@ export const EmailProvider = ({ children }) => {
     moveToSpam: moveToSpamAction,
     saveDraft: saveDraftAction,
     deleteDraft: deleteDraftAction,
-    updateProfile: updateUserProfileAction
+    updateProfile: updateUserProfileAction,
+    // Reminders & Follow-ups
+    reminders,
+    dueRemindersCount,
+    reminderModalEmail,
+    openReminderModal,
+    closeReminderModal,
+    createReminder: createReminderAction,
+    completeReminder: completeReminderAction,
+    deleteReminder: deleteReminderAction,
+    dueNotification,
+    dismissDueNotification,
+    // Semantic Natural-Language Search
+    semanticCriteria,
+    runSemanticSearch,
+    clearSemanticSearch
   };
 
   return (

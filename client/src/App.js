@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { EmailProvider, useEmailContext } from './context/EmailContext';
 import Sidebar from './components/Layout/Sidebar';
@@ -8,6 +8,7 @@ import InboxList from './components/Inbox/InboxList';
 import EmailDetail from './components/Email/EmailDetail';
 import EmailCompose from './components/Email/EmailCompose';
 import AssistantPanel from './components/Assistant/AssistantPanel';
+import AnalyticsDashboard from './components/Analytics/AnalyticsDashboard';
 import PrivacyPolicy from './components/Legal/PrivacyPolicy';
 import { initializeSocket } from './services/socket';
 import './styles/App.css';
@@ -23,6 +24,7 @@ function AppContent({
   selectedEmail, 
   setSelectedEmail 
 }) {
+  const navigate = useNavigate();
   const { showCompose, composeData, openCompose, closeCompose, activeEmail } = useEmailContext();
 
   // Keyboard shortcut: C to compose (+3 bonus)
@@ -65,12 +67,20 @@ function AppContent({
           isDarkMode={isDarkMode}
           onToggleAssistant={() => setShowAssistant(!showAssistant)}
           showAssistant={showAssistant}
+          onNavigate={(dest) => {
+            if (dest === 'inbox') navigate('/inbox');
+            else if (dest === 'follow-ups' || dest === 'followups') navigate('/follow-ups');
+            else if (dest === 'analytics') navigate('/analytics');
+            else navigate(`/${dest}`);
+          }}
         />
         
         <div className="app-content">
           <div className="app-inbox glass">
             <Routes>
               <Route path="/inbox" element={<InboxList folder="inbox" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/follow-ups" element={<InboxList folder="follow-ups" onEmailSelect={setSelectedEmail} />} />
+              <Route path="/analytics" element={<AnalyticsDashboard />} />
               <Route path="/starred" element={<InboxList folder="starred" onEmailSelect={setSelectedEmail} />} />
               <Route path="/sent" element={<InboxList folder="sent" onEmailSelect={setSelectedEmail} />} />
               <Route path="/drafts" element={<InboxList folder="drafts" onEmailSelect={setSelectedEmail} />} />

@@ -19,9 +19,11 @@ import {
   ShieldExclamationIcon,
   BellAlertIcon,
   UserGroupIcon,
-  TagIcon
+  TagIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import ReminderModal from '../Reminders/ReminderModal';
 
 const SkeletonEmail = () => (
   <div className="rounded-2xl p-4 bg-white/40 dark:bg-slate-900/30 border border-slate-200/50 dark:border-slate-800/50 flex items-center gap-3.5">
@@ -47,6 +49,8 @@ const FOLDER_CONFIG = {
   important: { title: 'Important', icon: BookmarkIcon, gradient: 'from-yellow-500 to-amber-600' },
   trash: { title: 'Trash', icon: TrashIcon, gradient: 'from-rose-500 to-red-600' },
   spam: { title: 'Spam', icon: ShieldExclamationIcon, gradient: 'from-orange-500 to-rose-600' },
+  'follow-ups': { title: 'Follow-Up Reminders', icon: ClockIcon, gradient: 'from-amber-500 to-orange-600' },
+  followups: { title: 'Follow-Up Reminders', icon: ClockIcon, gradient: 'from-amber-500 to-orange-600' },
   updates: { title: 'Updates Category', icon: BellAlertIcon, gradient: 'from-amber-500 to-yellow-600' },
   social: { title: 'Social Category', icon: UserGroupIcon, gradient: 'from-blue-500 to-cyan-600' },
   promotions: { title: 'Promotions Category', icon: TagIcon, gradient: 'from-emerald-500 to-teal-600' }
@@ -70,7 +74,9 @@ const InboxList = ({ folder: propFolder, sent = false, onEmailSelect }) => {
     toggleRead, 
     moveToTrash, 
     emptyTrash, 
-    openCompose 
+    openCompose,
+    reminderModalEmail,
+    closeReminderModal
   } = useEmailContext();
 
   const [filterMode, setFilterMode] = useState('all');
@@ -381,6 +387,13 @@ const InboxList = ({ folder: propFolder, sent = false, onEmailSelect }) => {
         confirmColor="bg-rose-600 hover:bg-rose-700"
         onConfirm={handleConfirmEmptyTrash}
         onCancel={() => setShowEmptyTrashConfirm(false)}
+      />
+
+      {/* Follow-Up Reminder Modal */}
+      <ReminderModal
+        email={reminderModalEmail}
+        isOpen={Boolean(reminderModalEmail)}
+        onClose={closeReminderModal}
       />
     </div>
   );

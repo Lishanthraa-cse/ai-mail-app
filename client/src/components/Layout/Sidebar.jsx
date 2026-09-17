@@ -20,13 +20,15 @@ import {
   ChevronRightIcon,
   UserGroupIcon,
   TagIcon,
-  BellAlertIcon
+  BellAlertIcon,
+  ClockIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 const Sidebar = ({ onCompose, onLogout, isDarkMode, toggleTheme }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { emails, userProfile, updateProfile } = useEmailContext();
+  const { emails, userProfile, updateProfile, reminders, dueRemindersCount } = useEmailContext();
 
   const [categoriesExpanded, setCategoriesExpanded] = useState(true);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -43,6 +45,22 @@ const Sidebar = ({ onCompose, onLogout, isDarkMode, toggleTheme }) => {
       icon: InboxIcon,
       badge: unreadCount > 0 ? unreadCount : null,
       badgeColor: 'bg-indigo-500 text-white'
+    },
+    { 
+      id: 'follow-ups', 
+      label: 'Follow-ups', 
+      path: '/follow-ups', 
+      icon: ClockIcon,
+      badge: dueRemindersCount > 0 ? `${dueRemindersCount} due` : ((reminders && reminders.filter(r => !r.isCompleted).length > 0) ? reminders.filter(r => !r.isCompleted).length : null),
+      badgeColor: dueRemindersCount > 0 ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+    },
+    { 
+      id: 'analytics', 
+      label: 'Analytics', 
+      path: '/analytics', 
+      icon: ChartBarIcon,
+      badge: 'Live',
+      badgeColor: 'bg-gradient-to-r from-primary-500 to-indigo-500 text-white'
     },
     { 
       id: 'starred', 

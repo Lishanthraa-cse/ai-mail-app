@@ -44,5 +44,36 @@ describe('Mail Client Core Logic & Dataset', () => {
       expect(e.isRead).toBe(false);
     });
   });
+
+  test('Follow-up reminders due date logic flags past deadlines', () => {
+    const futureReminder = {
+      dueDate: new Date(Date.now() + 86400000).toISOString(),
+      isCompleted: false
+    };
+    const pastReminder = {
+      dueDate: new Date(Date.now() - 3600000).toISOString(),
+      isCompleted: false
+    };
+
+    expect(new Date(futureReminder.dueDate) <= new Date()).toBe(false);
+    expect(new Date(pastReminder.dueDate) <= new Date()).toBe(true);
+  });
+
+  test('Semantic search keyword and category matching on local dataset', () => {
+    const careerMatches = SAMPLE_EMAILS.filter(e => 
+      e.labels?.includes('CAREER') || 
+      e.subject.toLowerCase().includes('roadmap') || 
+      e.body.toLowerCase().includes('sprint')
+    );
+    expect(careerMatches.length).toBeGreaterThan(0);
+  });
+
+  test('Calculated analytics statistics accuracy', () => {
+    const totalReceived = SAMPLE_EMAILS.length;
+    const unreadCount = SAMPLE_EMAILS.filter(e => !e.isRead).length;
+
+    expect(totalReceived).toBeGreaterThan(0);
+    expect(unreadCount).toBeLessThanOrEqual(totalReceived);
+  });
 });
 

@@ -14,10 +14,12 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   EnvelopeIcon,
-  ShieldExclamationIcon
+  ShieldExclamationIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
+import ReminderModal from '../Reminders/ReminderModal';
 
 const AVATAR_GRADIENTS = [
   'from-indigo-500 to-violet-600',
@@ -39,7 +41,17 @@ const getGradientForString = (str = '') => {
 const EmailDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { setActiveEmail, toggleStar, toggleRead, moveToTrash, moveToSpam } = useEmailContext();
+  const { 
+    setActiveEmail, 
+    toggleStar, 
+    toggleRead, 
+    moveToTrash, 
+    moveToSpam,
+    openReminderModal,
+    reminderModalEmail,
+    closeReminderModal,
+    completeReminder
+  } = useEmailContext();
   const [email, setEmail] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
   const [expandedThreads, setExpandedThreads] = useState({});
@@ -210,6 +222,20 @@ const EmailDetail = () => {
 
         <div className="flex items-center gap-1.5">
           <button
+            onClick={() => openReminderModal(email)}
+            title="Follow-Up Reminder"
+            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              email.reminder && !email.reminder.isCompleted
+                ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40'
+                : 'text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/70'
+            }`}
+          >
+            <ClockIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4 text-amber-500" />
+            <span className="hidden sm:inline">
+              {email.reminder && !email.reminder.isCompleted ? 'Follow-up Active' : 'Remind Me'}
+            </span>
+          </button>
+          <button
             onClick={() => setShowReplyBox(!showReplyBox)}
             title="Reply"
             className="p-2 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-colors"
@@ -253,6 +279,51 @@ const EmailDetail = () => {
 
       {/* Main Email Reading Canvas */}
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        {/* Active Follow-up Reminder Banner */}
+        {email.reminder && !email.reminder.isCompleted && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-400/50 dark:border-amber-500/30 flex items-center justify-between shadow-sm animate-fade-in">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <ClockIcon width={20} height={20} className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    Follow-Up Reminder Scheduled
+                  </span>
+                  {email.reminder.isDue && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500 text-white animate-pulse">
+                      Due Now
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Due: {new Date(email.reminder.dueDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  {email.reminder.notes ? ` • Note: ${email.reminder.notes}` : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => openReminderModal(email)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition"
+              >
+                Edit
+              </button>
+              <button
+                onClick={async () => {
+                  await completeReminder(email.reminder._id || email.reminder.id || email.emailId, email.emailId);
+                  setEmail(prev => ({ ...prev, reminder: { ...prev.reminder, isCompleted: true, isDue: false } }));
+                  toast.success('Follow-up marked as completed!');
+                }}
+                className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition"
+              >
+                Mark Done
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Email Header Card */}
         <div className="glass-card rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800/80">
           <div className="flex items-start justify-between gap-4 mb-4">
@@ -455,6 +526,13 @@ const EmailDetail = () => {
           </div>
         )}
       </div>
+
+      {/* Follow-Up Reminder Modal */}
+      <ReminderModal
+        email={reminderModalEmail}
+        isOpen={Boolean(reminderModalEmail)}
+        onClose={closeReminderModal}
+      />
     </div>
   );
 };

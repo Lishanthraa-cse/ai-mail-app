@@ -5,9 +5,12 @@ import {
   EnvelopeIcon, 
   EnvelopeOpenIcon,
   PaperClipIcon,
-  ArrowUturnLeftIcon
+  ArrowUturnLeftIcon,
+  ClockIcon,
+  BellAlertIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { useEmailContext } from '../../context/EmailContext';
 
 const AVATAR_GRADIENTS = [
   'from-indigo-500 to-violet-600',
@@ -54,8 +57,12 @@ const EmailItem = ({
   folder = 'inbox', 
   isSelected = false 
 }) => {
+  const { openReminderModal } = useEmailContext();
   const isStarred = Boolean(email.isStarred || email.labels?.includes('STARRED'));
   const isRead = Boolean(email.isRead ?? true);
+
+  const hasReminder = Boolean(email.reminder && !email.reminder.isCompleted);
+  const isFollowUpDue = Boolean(hasReminder && email.reminder.isDue);
 
   const senderName = email.from?.name || email.from?.email || (email.to?.[0]?.email ? `To: ${email.to[0].email}` : 'Draft');
   const senderEmail = email.from?.email || '';
@@ -100,21 +107,34 @@ const EmailItem = ({
     if (onRestore) onRestore(email);
   };
 
+  const handleRemindClick = (e) => {
+    e.stopPropagation();
+    if (openReminderModal) openReminderModal(email);
+  };
+
   return (
     <div
       onClick={onClick}
       className={`group relative rounded-2xl p-4 transition-all duration-200 cursor-pointer border ${
-        isSelected ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 shadow-md shadow-indigo-500/20' : ''
+        isFollowUpDue
+          ? 'bg-amber-50/75 dark:bg-amber-950/30 border-amber-400 dark:border-amber-500/80 ring-2 ring-amber-500/40 shadow-md shadow-amber-500/10'
+          : isSelected 
+            ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 shadow-md shadow-indigo-500/20' 
+            : ''
       } ${
-        !isRead
+        !isFollowUpDue && !isRead
           ? 'bg-white/95 dark:bg-slate-800/90 border-indigo-200/80 dark:border-indigo-500/30 shadow-sm shadow-indigo-500/5'
-          : 'bg-white/40 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800/60'
+          : !isFollowUpDue
+            ? 'bg-white/40 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800/60'
+            : ''
       } hover:shadow-lg hover:shadow-slate-500/5 hover:-translate-y-0.5`}
     >
       <div className="flex items-start gap-3.5">
-        {/* Unread Accent Dot */}
+        {/* Unread / Due Accent Dot */}
         <div className="pt-2.5 flex-shrink-0 flex items-center justify-center w-2">
-          {!isRead ? (
+          {isFollowUpDue ? (
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-500/20 animate-ping"></span>
+          ) : !isRead ? (
             <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400 ring-4 ring-indigo-500/20 animate-pulse"></span>
           ) : (
             <span className="w-1.5 h-1.5 rounded-full bg-transparent group-hover:bg-slate-300 dark:group-hover:bg-slate-700 transition-colors"></span>
@@ -144,6 +164,18 @@ const EmailItem = ({
               {category && (
                 <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${category.color}`}>
                   {category.label}
+                </span>
+              )}
+              {isFollowUpDue && (
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-500 text-white shadow-sm animate-pulse">
+                  <BellAlertIcon width={12} height={12} className="w-3 h-3" />
+                  <span>Follow-up due</span>
+                </span>
+              )}
+              {!isFollowUpDue && hasReminder && (
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                  <ClockIcon width={12} height={12} className="w-3 h-3 text-amber-500" />
+                  <span>Follow-up</span>
                 </span>
               )}
             </div>
@@ -176,6 +208,17 @@ const EmailItem = ({
 
         {/* Quick Hover Action Bar */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-2 py-1 rounded-xl shadow-lg border border-slate-200/80 dark:border-slate-700">
+          <button
+            onClick={handleRemindClick}
+            title={hasReminder ? 'Edit Follow-up Reminder' : 'Remind Me'}
+            className={`p-1.5 rounded-lg transition-colors ${
+              hasReminder
+                ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60'
+                : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            <ClockIcon width={16} height={16} style={{ width: '1rem', height: '1rem' }} className="w-4 h-4" />
+          </button>
           {folder === 'trash' ? (
             <button
               onClick={handleRestoreClick}
