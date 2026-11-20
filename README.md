@@ -126,40 +126,6 @@ Visit **[http://localhost:3000](http://localhost:3000)** in your browser and log
 
 ---
 
-## Production Deployment
-
-The application is live at **[https://ai-mail-app.onrender.com](https://ai-mail-app.onrender.com)**.
-
-### 1. Deployment Configuration
-
-For deploying your own instance on Render, Railway, or similar platforms:
-
-- **Build Command**: `npm run build`
-- **Start Command**: `npm start`
-- **Runtime**: Node.js
-
-### 2. Required Environment Variables
-
-| Variable | Description |
-|:---------|:------------|
-| `MONGODB_URI` | MongoDB Atlas connection string |
-| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
-| `GOOGLE_REDIRECT_URI` | OAuth callback URL (e.g., `https://your-domain.com/api/auth/google/callback`) |
-| `SESSION_SECRET` | Express session secret |
-| `JWT_SECRET` | JWT signing secret |
-| `GEMINI_API_KEY` | *(Optional)* Google Gemini API key |
-
-### 3. Google OAuth Setup
-
-Add your production domain to:
-- **Authorized JavaScript origins**: `https://your-domain.com`
-- **Authorized redirect URIs**: `https://your-domain.com/api/auth/google/callback`
-
-> **Note**: For testing, add your email as a Test User in Google Cloud Console > OAuth Consent Screen.
-
----
-
 ## Tech stack used in project
 
 - **Frontend**: React 18, Tailwind CSS, Heroicons, Socket.IO Client, React Router v6, React Hot Toast
