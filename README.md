@@ -1,7 +1,7 @@
 # AI-Powered Mail Web Application
 
 [![Live Deployment](https://img.shields.io/badge/Live_App-ai--mail--app.onrender.com-success?style=for-the-badge&logo=render)](https://ai-mail-app.onrender.com)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Lishanthraa--cse%2Fai--mail--app-blue?style=for-the-badge&logo=github)](https://github.com/Lishanthraa-cse/ai-mail-app)
+
 
 An intelligent, full-stack email client connected to Google Gmail OAuth 2.0 where an integrated AI Assistant **directly controls and paints the UI programmatically** — composing emails, navigating views, filtering data, and executing contextual actions on behalf of the user through natural language.
 
